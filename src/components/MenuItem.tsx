@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { Plus, Star } from "lucide-react";
+import { Plus } from "lucide-react";
 import { MenuItem as MenuItemType } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 
 interface MenuItemProps {
   item: MenuItemType;
   onAddToCart: (item: MenuItemType, size: string, price: number) => void;
+  bgColor: string;
 }
 
-const MenuItem = ({ item, onAddToCart }: MenuItemProps) => {
+const MenuItem = ({ item, onAddToCart, bgColor }: MenuItemProps) => {
   const [selectedSize, setSelectedSize] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -22,65 +23,83 @@ const MenuItem = ({ item, onAddToCart }: MenuItemProps) => {
     setTimeout(() => setIsAdding(false), 300);
   };
 
+  const getBgClass = () => {
+    switch (bgColor) {
+      case "pastel-peach": return "bg-pastel-peach";
+      case "pastel-blue": return "bg-pastel-blue";
+      case "pastel-lavender": return "bg-pastel-lavender";
+      case "pastel-mint": return "bg-pastel-mint";
+      case "pastel-yellow": return "bg-pastel-yellow";
+      default: return "bg-pastel-pink";
+    }
+  };
+
   return (
     <div 
       className={cn(
-        "group bg-card rounded-2xl overflow-hidden shadow-card hover:shadow-float transition-all duration-500",
-        "animate-fade-in"
+        "group p-3 rounded-2xl transition-all duration-300 hover:scale-[1.02] animate-fade-in",
+        getBgClass()
       )}
-      style={{ animationDelay: `${Math.random() * 0.3}s` }}
     >
-      <div className="relative aspect-square overflow-hidden">
-        <img
-          src={item.image}
-          alt={item.name}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-        />
-        {item.popular && (
-          <div className="absolute top-3 left-3 flex items-center gap-1 bg-secondary text-secondary-foreground px-2 py-1 rounded-full text-xs font-medium">
-            <Star className="w-3 h-3 fill-current" />
-            Popular
+      <div className="flex gap-3">
+        {/* Circular Image */}
+        <div className="relative flex-shrink-0">
+          <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-card shadow-md">
+            <img
+              src={item.image}
+              alt={item.name}
+              className="w-full h-full object-cover"
+            />
           </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      </div>
-
-      <div className="p-4">
-        <h3 className="font-display text-lg font-semibold text-foreground mb-1">
-          {item.name}
-        </h3>
-        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-          {item.description}
-        </p>
-
-        <div className="flex gap-2 mb-3">
-          {item.prices.map((price, index) => (
-            <button
-              key={price.size}
-              onClick={() => setSelectedSize(index)}
-              className={cn(
-                "flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all duration-300",
-                selectedSize === index
-                  ? "bg-primary text-primary-foreground shadow-soft"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              )}
-            >
-              <div>{price.size}</div>
-              <div className="font-bold">R$ {price.price.toFixed(2)}</div>
-            </button>
-          ))}
         </div>
 
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-foreground text-sm leading-tight mb-1">
+            {item.name}
+          </h3>
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-2 uppercase">
+            {item.description}
+          </p>
+          
+          {/* Prices */}
+          <div className="flex flex-wrap gap-1 text-xs">
+            {item.prices.map((price, index) => (
+              <button
+                key={price.size}
+                onClick={() => setSelectedSize(index)}
+                className={cn(
+                  "transition-all duration-200",
+                  selectedSize === index
+                    ? "text-brand-pink font-bold"
+                    : "text-foreground"
+                )}
+              >
+                <span className="font-semibold">{price.size}</span>{" "}
+                <span className={cn(
+                  "font-bold",
+                  selectedSize === index ? "text-brand-pink" : "text-primary"
+                )}>
+                  R${price.price.toFixed(2).replace(".", ",")}
+                </span>
+                {index < item.prices.length - 1 && (
+                  <span className="text-muted-foreground mx-1">•</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Add Button */}
         <button
           onClick={handleAdd}
           className={cn(
-            "w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all duration-300",
-            "bg-primary text-primary-foreground hover:opacity-90 active:scale-95",
-            isAdding && "scale-95 opacity-80"
+            "self-center w-8 h-8 flex items-center justify-center rounded-full transition-all duration-300",
+            "bg-brand-pink text-primary-foreground hover:opacity-90",
+            isAdding && "scale-90"
           )}
         >
           <Plus className="w-4 h-4" />
-          Adicionar
         </button>
       </div>
     </div>

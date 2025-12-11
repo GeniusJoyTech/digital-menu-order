@@ -6,23 +6,22 @@ const MenuHeader = () => {
   const tableNumber = mesa?.replace("mesa-", "") || "1";
 
   return (
-    <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-lg border-b border-border">
-      <div className="container py-4">
+    <header className="sticky top-0 z-40 bg-brand-pink py-4">
+      <div className="container">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full gradient-hero flex items-center justify-center shadow-soft">
-              <span className="text-2xl">🍦</span>
-            </div>
-            <div>
-              <h1 className="font-display text-xl font-bold text-foreground">
-                Shake & Açaí
+            <div className="flex flex-col">
+              <h1 className="font-display text-3xl text-primary-foreground leading-none">
+                Shake Yes
               </h1>
-              <p className="text-sm text-muted-foreground">Cardápio Digital</p>
+              <p className="text-xs text-primary-foreground/80">
+                Personalizamos o copo com o seu nome!
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-primary/10 px-3 py-2 rounded-full">
-            <MapPin className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">
+          <div className="flex items-center gap-2 bg-primary-foreground/20 backdrop-blur-sm px-3 py-2 rounded-full">
+            <MapPin className="w-4 h-4 text-primary-foreground" />
+            <span className="text-sm font-medium text-primary-foreground">
               Mesa {tableNumber}
             </span>
           </div>

@@ -8,7 +8,7 @@ interface CategoryNavProps {
 
 const CategoryNav = ({ activeCategory, onCategoryChange }: CategoryNavProps) => {
   return (
-    <nav className="sticky top-[73px] z-30 bg-background/95 backdrop-blur-md py-3 border-b border-border">
+    <nav className="sticky top-[72px] z-30 bg-background py-3">
       <div className="container">
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           {menuCategories.map((category) => (
@@ -16,14 +16,13 @@ const CategoryNav = ({ activeCategory, onCategoryChange }: CategoryNavProps) => 
               key={category.id}
               onClick={() => onCategoryChange(category.id)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all duration-300 font-medium text-sm",
+                "px-4 py-2 rounded-full whitespace-nowrap transition-all duration-300 font-medium text-sm border-2",
                 activeCategory === category.id
-                  ? "bg-primary text-primary-foreground shadow-soft"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "bg-brand-pink text-primary-foreground border-brand-pink"
+                  : "bg-card text-foreground border-border hover:border-brand-pink"
               )}
             >
-              <span>{category.icon}</span>
-              <span>{category.name}</span>
+              {category.name}
             </button>
           ))}
         </div>
