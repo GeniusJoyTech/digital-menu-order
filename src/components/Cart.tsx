@@ -30,11 +30,11 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
     
     items.forEach((item) => {
       message += `• ${item.quantity}x ${item.name} (${item.selectedSize})\n`;
-      message += `   R$ ${(item.selectedPrice * item.quantity).toFixed(2)}\n\n`;
+      message += `   R$ ${(item.selectedPrice * item.quantity).toFixed(2).replace(".", ",")}\n\n`;
     });
     
     message += `━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `💰 *TOTAL: R$ ${totalPrice.toFixed(2)}*\n`;
+    message += `💰 *TOTAL: R$ ${totalPrice.toFixed(2).replace(".", ",")}*\n`;
     message += `📍 *Mesa: ${tableNumber}*`;
 
     const encodedMessage = encodeURIComponent(message);
@@ -53,22 +53,22 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
       <button
         onClick={() => setIsOpen(true)}
         className={cn(
-          "fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-float transition-all duration-300",
-          "bg-primary text-primary-foreground hover:opacity-90 active:scale-95",
+          "fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-lg transition-all duration-300",
+          "bg-brand-pink text-primary-foreground hover:opacity-90 active:scale-95",
           totalItems > 0 ? "animate-bounce-soft" : ""
         )}
       >
         <div className="relative">
           <ShoppingBag className="w-6 h-6" />
           {totalItems > 0 && (
-            <span className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center bg-secondary text-secondary-foreground text-xs font-bold rounded-full">
+            <span className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center bg-card text-foreground text-xs font-bold rounded-full">
               {totalItems}
             </span>
           )}
         </div>
         <div className="text-left">
           <div className="text-xs opacity-80">Ver Comanda</div>
-          <div className="font-bold">R$ {totalPrice.toFixed(2)}</div>
+          <div className="font-bold">R$ {totalPrice.toFixed(2).replace(".", ",")}</div>
         </div>
       </button>
 
@@ -88,7 +88,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
         {/* Drawer */}
         <div
           className={cn(
-            "absolute bottom-0 left-0 right-0 max-h-[85vh] bg-card rounded-t-3xl shadow-float transition-transform duration-500",
+            "absolute bottom-0 left-0 right-0 max-h-[85vh] bg-card rounded-t-3xl shadow-lg transition-transform duration-500",
             isOpen ? "translate-y-0" : "translate-y-full"
           )}
         >
@@ -100,7 +100,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
           {/* Header */}
           <div className="flex items-center justify-between px-6 pb-4 border-b border-border">
             <div>
-              <h2 className="font-display text-xl font-bold text-foreground">
+              <h2 className="font-display text-2xl text-brand-pink">
                 Sua Comanda
               </h2>
               <p className="text-sm text-muted-foreground">
@@ -126,54 +126,54 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {items.map((item) => (
                   <div
                     key={`${item.id}-${item.selectedSize}`}
-                    className="flex gap-4 p-3 bg-muted/50 rounded-xl animate-scale-in"
+                    className="flex gap-3 p-3 bg-pastel-pink rounded-xl animate-scale-in"
                   >
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="w-20 h-20 rounded-lg object-cover"
+                      className="w-16 h-16 rounded-full object-cover border-2 border-card"
                     />
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-foreground truncate">
+                      <h4 className="font-medium text-foreground text-sm truncate">
                         {item.name}
                       </h4>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {item.selectedSize}
                       </p>
-                      <p className="font-bold text-primary mt-1">
-                        R$ {(item.selectedPrice * item.quantity).toFixed(2)}
+                      <p className="font-bold text-brand-pink text-sm mt-1">
+                        R$ {(item.selectedPrice * item.quantity).toFixed(2).replace(".", ",")}
                       </p>
                     </div>
                     <div className="flex flex-col items-end justify-between">
                       <button
                         onClick={() => onRemoveItem(item.id, item.selectedSize)}
-                        className="w-8 h-8 flex items-center justify-center text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                        className="w-7 h-7 flex items-center justify-center text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={() =>
                             onUpdateQuantity(item.id, item.selectedSize, -1)
                           }
-                          className="w-8 h-8 flex items-center justify-center bg-card rounded-lg shadow-soft text-foreground hover:bg-muted transition-colors"
+                          className="w-7 h-7 flex items-center justify-center bg-card rounded-lg text-foreground hover:bg-muted transition-colors"
                         >
-                          <Minus className="w-4 h-4" />
+                          <Minus className="w-3 h-3" />
                         </button>
-                        <span className="w-8 text-center font-bold text-foreground">
+                        <span className="w-6 text-center font-bold text-sm text-foreground">
                           {item.quantity}
                         </span>
                         <button
                           onClick={() =>
                             onUpdateQuantity(item.id, item.selectedSize, 1)
                           }
-                          className="w-8 h-8 flex items-center justify-center bg-primary text-primary-foreground rounded-lg shadow-soft hover:opacity-90 transition-colors"
+                          className="w-7 h-7 flex items-center justify-center bg-brand-pink text-primary-foreground rounded-lg hover:opacity-90 transition-colors"
                         >
-                          <Plus className="w-4 h-4" />
+                          <Plus className="w-3 h-3" />
                         </button>
                       </div>
                     </div>
@@ -188,13 +188,13 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
             <div className="px-6 py-4 border-t border-border bg-card">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-muted-foreground">Total</span>
-                <span className="text-2xl font-display font-bold text-foreground">
-                  R$ {totalPrice.toFixed(2)}
+                <span className="text-2xl font-display text-brand-pink">
+                  R$ {totalPrice.toFixed(2).replace(".", ",")}
                 </span>
               </div>
               <button
                 onClick={sendToWhatsApp}
-                className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-bold text-lg bg-[#25D366] text-white hover:bg-[#20bd5a] active:scale-[0.98] transition-all duration-300 shadow-float"
+                className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-bold text-lg bg-[#25D366] text-white hover:bg-[#20bd5a] active:scale-[0.98] transition-all duration-300 shadow-lg"
               >
                 <Send className="w-5 h-5" />
                 Enviar Pedido via WhatsApp
