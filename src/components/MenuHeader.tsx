@@ -3,7 +3,8 @@ import { MapPin } from "lucide-react";
 
 const MenuHeader = () => {
   const { mesa } = useParams();
-  const tableNumber = mesa?.replace("mesa-", "") || "1";
+  const isTable = mesa?.startsWith("mesa-");
+  const tableNumber = mesa?.replace("mesa-", "") || null;
 
   return (
     <header className="sticky top-0 z-40 bg-brand-pink py-4">
@@ -19,12 +20,14 @@ const MenuHeader = () => {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-primary-foreground/20 backdrop-blur-sm px-3 py-2 rounded-full">
-            <MapPin className="w-4 h-4 text-primary-foreground" />
-            <span className="text-sm font-medium text-primary-foreground">
-              Mesa {tableNumber}
-            </span>
-          </div>
+          {isTable && tableNumber && (
+            <div className="flex items-center gap-2 bg-primary-foreground/20 backdrop-blur-sm px-3 py-2 rounded-full">
+              <MapPin className="w-4 h-4 text-primary-foreground" />
+              <span className="text-sm font-medium text-primary-foreground">
+                Mesa {tableNumber}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </header>

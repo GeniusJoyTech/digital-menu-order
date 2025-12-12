@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { ShoppingBag, Plus, Minus, Trash2, Send, X } from "lucide-react";
-import { CartItem } from "@/data/menuData";
+import { CartItem, extras } from "@/data/menuData";
 import { cn } from "@/lib/utils";
+import CheckoutForm, { CheckoutData } from "./CheckoutForm";
 
 interface CartProps {
   items: CartItem[];
@@ -11,10 +12,18 @@ interface CartProps {
   onClearCart: () => void;
 }
 
+const drinkPrices: Record<string, { name: string; price: number }> = {
+  agua: { name: "Água", price: 5 },
+  "coca-lata": { name: "Coca-Cola Lata", price: 7 },
+  "guarana-lata": { name: "Guaraná Lata", price: 7 },
+};
+
 const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
   const { mesa } = useParams();
-  const tableNumber = mesa?.replace("mesa-", "") || "1";
+  const isTable = mesa?.startsWith("mesa-");
+  const tableNumber = mesa?.replace("mesa-", "") || null;
 
   const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
   const totalPrice = items.reduce(
@@ -22,26 +31,79 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
     0
   );
 
-  const sendToWhatsApp = () => {
+  const handleCheckoutSubmit = (data: CheckoutData) => {
     const phoneNumber = "5515988240374";
     
-    let message = `🍦 *NOVO PEDIDO - MESA ${tableNumber}*\n`;
+    // Calculate extras total
+    const turbinarTotal = data.turbinarItems.reduce((acc, itemId) => {
+      const extra = extras.find((e) => e.id === itemId);
+      return acc + (extra?.price || 0);
+    }, 0);
+    
+    const drinkTotal = data.extraDrink ? (drinkPrices[data.extraDrink]?.price || 0) : 0;
+    const finalTotal = totalPrice + turbinarTotal + drinkTotal;
+    
+    let message = "";
+    
+    if (isTable) {
+      message = `🍦 *NOVO PEDIDO - MESA ${tableNumber}*\n`;
+    } else if (data.deliveryType === "pickup") {
+      message = `🍦 *NOVO PEDIDO - RETIRADA NA LOJA*\n`;
+    } else {
+      message = `🍦 *NOVO PEDIDO - DELIVERY*\n`;
+    }
+    
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `👤 *Nome:* ${data.recipientName}\n`;
+    
+    if (data.nameOnCup) {
+      message += `✨ *Nome no copo:* Sim\n`;
+    }
+    
+    if (data.deliveryType === "delivery" && data.address) {
+      message += `📍 *Endereço:* ${data.address}\n`;
+    }
+    
+    message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `📋 *ITENS:*\n\n`;
     
     items.forEach((item) => {
       message += `• ${item.quantity}x ${item.name} (${item.selectedSize})\n`;
       message += `   R$ ${(item.selectedPrice * item.quantity).toFixed(2).replace(".", ",")}\n\n`;
     });
     
-    message += `━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `💰 *TOTAL: R$ ${totalPrice.toFixed(2).replace(".", ",")}*\n`;
-    message += `📍 *Mesa: ${tableNumber}*`;
+    if (data.turbinarItems.length > 0) {
+      message += `\n⚡ *TURBINAR:*\n`;
+      data.turbinarItems.forEach((itemId) => {
+        const extra = extras.find((e) => e.id === itemId);
+        if (extra) {
+          message += `• ${extra.name} - R$ ${extra.price.toFixed(2).replace(".", ",")}\n`;
+        }
+      });
+    }
+    
+    if (data.extraDrink && drinkPrices[data.extraDrink]) {
+      message += `\n🥤 *BEBIDA EXTRA:*\n`;
+      message += `• ${drinkPrices[data.extraDrink].name} - R$ ${drinkPrices[data.extraDrink].price.toFixed(2).replace(".", ",")}\n`;
+    }
+    
+    message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `💰 *TOTAL: R$ ${finalTotal.toFixed(2).replace(".", ",")}*\n`;
+    
+    if (isTable) {
+      message += `📍 *Mesa:* ${tableNumber}`;
+    } else if (data.deliveryType === "pickup") {
+      message += `🏪 *Retirada na loja*`;
+    } else {
+      message += `🛵 *Delivery*`;
+    }
 
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
     
     window.open(whatsappUrl, "_blank");
     onClearCart();
+    setShowCheckout(false);
     setIsOpen(false);
   };
 
@@ -104,7 +166,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
                 Sua Comanda
               </h2>
               <p className="text-sm text-muted-foreground">
-                Mesa {tableNumber} • {totalItems} {totalItems === 1 ? "item" : "itens"}
+                {isTable ? `Mesa ${tableNumber} • ` : ""}{totalItems} {totalItems === 1 ? "item" : "itens"}
               </p>
             </div>
             <button
@@ -193,7 +255,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
                 </span>
               </div>
               <button
-                onClick={sendToWhatsApp}
+                onClick={() => setShowCheckout(true)}
                 className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-bold text-lg bg-[#25D366] text-white hover:bg-[#20bd5a] active:scale-[0.98] transition-all duration-300 shadow-lg"
               >
                 <Send className="w-5 h-5" />
@@ -203,6 +265,16 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
           )}
         </div>
       </div>
+
+      {/* Checkout Form */}
+      {showCheckout && (
+        <CheckoutForm
+          isTable={!!isTable}
+          tableNumber={tableNumber || ""}
+          onSubmit={handleCheckoutSubmit}
+          onClose={() => setShowCheckout(false)}
+        />
+      )}
     </>
   );
 };
