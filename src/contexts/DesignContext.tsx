@@ -2,6 +2,11 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 
 export type CardLayout = "left" | "right" | "left-bordered" | "right-bordered" | "left-filled" | "right-filled";
 
+export interface CustomFont {
+  name: string;
+  url: string;
+}
+
 export interface DesignConfig {
   logo: string;
   storeName: string;
@@ -12,6 +17,7 @@ export interface DesignConfig {
   fontDisplay: string;
   fontBody: string;
   cardLayout: CardLayout;
+  customFonts: CustomFont[];
 }
 
 const defaultDesign: DesignConfig = {
@@ -24,17 +30,40 @@ const defaultDesign: DesignConfig = {
   fontDisplay: "Pacifico",
   fontBody: "Poppins",
   cardLayout: "left-filled",
+  customFonts: [],
 };
 
 interface DesignContextType {
   design: DesignConfig;
   updateDesign: (updates: Partial<DesignConfig>) => void;
   resetDesign: () => void;
+  addCustomFont: (font: CustomFont) => void;
+  removeCustomFont: (fontName: string) => void;
+  getAllFonts: () => string[];
 }
 
 const DesignContext = createContext<DesignContextType | undefined>(undefined);
 
 const STORAGE_KEY = "shake-yes-design";
+
+// Load custom fonts into the document
+const loadCustomFont = (font: CustomFont) => {
+  const existingLink = document.querySelector(`link[data-font="${font.name}"]`);
+  if (!existingLink) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = font.url;
+    link.setAttribute("data-font", font.name);
+    document.head.appendChild(link);
+  }
+};
+
+const unloadCustomFont = (fontName: string) => {
+  const link = document.querySelector(`link[data-font="${fontName}"]`);
+  if (link) {
+    link.remove();
+  }
+};
 
 export const DesignProvider = ({ children }: { children: ReactNode }) => {
   const [design, setDesign] = useState<DesignConfig>(() => {
@@ -58,6 +87,9 @@ export const DesignProvider = ({ children }: { children: ReactNode }) => {
     root.style.setProperty("--background", design.backgroundColor);
     root.style.setProperty("--card", design.cardBackground);
     root.style.setProperty("--primary", design.accentColor);
+
+    // Load all custom fonts
+    design.customFonts.forEach(loadCustomFont);
   }, [design]);
 
   const updateDesign = (updates: Partial<DesignConfig>) => {
@@ -68,8 +100,36 @@ export const DesignProvider = ({ children }: { children: ReactNode }) => {
     setDesign(defaultDesign);
   };
 
+  const addCustomFont = (font: CustomFont) => {
+    setDesign((prev) => {
+      if (prev.customFonts.some((f) => f.name === font.name)) {
+        return prev;
+      }
+      loadCustomFont(font);
+      return { ...prev, customFonts: [...prev.customFonts, font] };
+    });
+  };
+
+  const removeCustomFont = (fontName: string) => {
+    setDesign((prev) => {
+      unloadCustomFont(fontName);
+      return {
+        ...prev,
+        customFonts: prev.customFonts.filter((f) => f.name !== fontName),
+        fontDisplay: prev.fontDisplay === fontName ? "Pacifico" : prev.fontDisplay,
+        fontBody: prev.fontBody === fontName ? "Poppins" : prev.fontBody,
+      };
+    });
+  };
+
+  const getAllFonts = () => {
+    const builtInFonts = ["Pacifico", "Poppins", "Roboto", "Inter", "Montserrat", "Open Sans", "Lato"];
+    const customFontNames = design.customFonts.map((f) => f.name);
+    return [...builtInFonts, ...customFontNames];
+  };
+
   return (
-    <DesignContext.Provider value={{ design, updateDesign, resetDesign }}>
+    <DesignContext.Provider value={{ design, updateDesign, resetDesign, addCustomFont, removeCustomFont, getAllFonts }}>
       {children}
     </DesignContext.Provider>
   );
