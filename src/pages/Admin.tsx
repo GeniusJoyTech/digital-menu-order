@@ -261,6 +261,7 @@ const Admin = () => {
         {activeTab === "categories" && (
           <CategoryManager
             categories={config.categories}
+            menuItems={config.menuItems}
             onUpdate={updateCategories}
           />
         )}
@@ -426,6 +427,7 @@ const Admin = () => {
         {activeTab === "checkout" && (
           <CheckoutStepsManager
             steps={checkoutConfig.steps}
+            menuItems={config.menuItems}
             onUpdate={updateStep}
             onAdd={addStep}
             onDelete={deleteStep}
