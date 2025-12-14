@@ -2,11 +2,15 @@ import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMenu } from "@/contexts/MenuContext";
 import { useDesign, CardLayout } from "@/contexts/DesignContext";
+import { useCheckout } from "@/contexts/CheckoutContext";
 import { Navigate } from "react-router-dom";
-import { LogOut, Plus, Trash2, Edit2, Save, X, RotateCcw, Upload, Image, Package, Minus, Palette, Settings } from "lucide-react";
+import { LogOut, Plus, Trash2, Edit2, Save, X, RotateCcw, Upload, Image, Package, Minus, Palette, Settings, List, Layers } from "lucide-react";
 import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ColorPicker } from "@/components/admin/ColorPicker";
+import { CategoryManager } from "@/components/admin/CategoryManager";
+import { CheckoutStepsManager } from "@/components/admin/CheckoutStepsManager";
 
 const FONT_OPTIONS = [
   { value: "Pacifico", label: "Pacifico (Cursiva)" },
@@ -27,12 +31,15 @@ const LAYOUT_OPTIONS: { value: CardLayout; label: string; description: string }[
   { value: "right", label: "Imagem à direita (Simples)", description: "Card simples com imagem à direita" },
 ];
 
+type TabType = "items" | "categories" | "extras" | "drinks" | "acai" | "checkout" | "stock" | "design";
+
 const Admin = () => {
   const { isAuthenticated, logout } = useAuth();
-  const { config, updateMenuItem, addMenuItem, deleteMenuItem, updateExtra, addExtra, deleteExtra, updateDrinkOption, addDrinkOption, deleteDrinkOption, addAcaiTurbineItem, removeAcaiTurbineItem, updateAcaiTurbineItem, resetToDefault } = useMenu();
+  const { config, updateMenuItem, addMenuItem, deleteMenuItem, updateExtra, addExtra, deleteExtra, updateDrinkOption, addDrinkOption, deleteDrinkOption, addAcaiTurbineItem, removeAcaiTurbineItem, updateAcaiTurbineItem, updateCategories, resetToDefault } = useMenu();
   const { design, updateDesign, resetDesign } = useDesign();
+  const { config: checkoutConfig, updateStep, addStep, deleteStep, reorderSteps, resetToDefault: resetCheckout } = useCheckout();
   
-  const [activeTab, setActiveTab] = useState<"items" | "extras" | "drinks" | "acai" | "stock" | "design">("items");
+  const [activeTab, setActiveTab] = useState<TabType>("items");
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [editingExtra, setEditingExtra] = useState<{ id: string; name: string; price: number } | null>(null);
   const [editingDrink, setEditingDrink] = useState<{ id: string; name: string; price: number } | null>(null);
@@ -123,9 +130,21 @@ const Admin = () => {
   const handleReset = () => {
     if (confirm("Tem certeza que deseja restaurar todas as configurações padrão? Isso irá apagar todas as alterações.")) {
       resetToDefault();
+      resetCheckout();
       toast.success("Configurações restauradas!");
     }
   };
+
+  const tabs: { id: TabType; label: string; icon?: React.ReactNode }[] = [
+    { id: "items", label: "Itens do Cardápio" },
+    { id: "categories", label: "Categorias", icon: <Layers className="w-4 h-4" /> },
+    { id: "extras", label: "Turbinar Shake" },
+    { id: "drinks", label: "Água/Refrigerante" },
+    { id: "acai", label: "Turbinar Açaí" },
+    { id: "checkout", label: "Etapas do Pedido", icon: <List className="w-4 h-4" /> },
+    { id: "stock", label: "Estoque" },
+    { id: "design", label: "Configurações" },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -155,24 +174,18 @@ const Admin = () => {
       {/* Tabs */}
       <div className="max-w-4xl mx-auto px-4 py-4">
         <div className="flex gap-2 overflow-x-auto pb-2">
-          {[
-            { id: "items", label: "Itens do Cardápio" },
-            { id: "extras", label: "Turbinar Shake" },
-            { id: "drinks", label: "Água/Refrigerante" },
-            { id: "acai", label: "Turbinar Açaí" },
-            { id: "stock", label: "Estoque" },
-            { id: "design", label: "Configurações" },
-          ].map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors",
+                "px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors flex items-center gap-2",
                 activeTab === tab.id
                   ? "bg-brand-pink text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
+              {tab.icon}
               {tab.label}
             </button>
           ))}
@@ -243,6 +256,13 @@ const Admin = () => {
               </div>
             ))}
           </div>
+        )}
+
+        {activeTab === "categories" && (
+          <CategoryManager
+            categories={config.categories}
+            onUpdate={updateCategories}
+          />
         )}
 
         {activeTab === "extras" && (
@@ -365,6 +385,52 @@ const Admin = () => {
               </div>
             ))}
           </div>
+        )}
+
+        {activeTab === "acai" && (
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newAcaiItem}
+                onChange={(e) => setNewAcaiItem(e.target.value)}
+                placeholder="Nome do item..."
+                className="flex-1 p-3 rounded-xl border border-border bg-card text-foreground"
+                onKeyDown={(e) => e.key === "Enter" && handleAddAcaiItem()}
+              />
+              <button
+                onClick={handleAddAcaiItem}
+                className="px-4 py-3 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </div>
+
+            {config.acaiTurbine.map((item, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border"
+              >
+                <span className="flex-1 font-medium text-foreground">{item.name}</span>
+                <button
+                  onClick={() => handleRemoveAcaiItem(index)}
+                  className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === "checkout" && (
+          <CheckoutStepsManager
+            steps={checkoutConfig.steps}
+            onUpdate={updateStep}
+            onAdd={addStep}
+            onDelete={deleteStep}
+            onReorder={reorderSteps}
+          />
         )}
 
         {activeTab === "stock" && (
@@ -637,42 +703,6 @@ const Admin = () => {
           </div>
         )}
 
-        {activeTab === "acai" && (
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newAcaiItem}
-                onChange={(e) => setNewAcaiItem(e.target.value)}
-                placeholder="Nome do item..."
-                className="flex-1 p-3 rounded-xl border border-border bg-card text-foreground"
-                onKeyDown={(e) => e.key === "Enter" && handleAddAcaiItem()}
-              />
-              <button
-                onClick={handleAddAcaiItem}
-                className="px-4 py-3 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-            </div>
-
-            {config.acaiTurbine.map((item, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border"
-              >
-                <span className="flex-1 font-medium text-foreground">{item.name}</span>
-                <button
-                  onClick={() => handleRemoveAcaiItem(index)}
-                  className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
         {activeTab === "design" && (
           <div className="space-y-6">
             {/* Logo Section */}
@@ -754,50 +784,29 @@ const Admin = () => {
               </div>
               
               <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="text-sm font-medium text-foreground">Cor Principal (HSL)</label>
-                  <input
-                    type="text"
-                    value={design.primaryColor}
-                    onChange={(e) => updateDesign({ primaryColor: e.target.value })}
-                    placeholder="340 75% 65%"
-                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Formato: H S% L% (ex: 340 75% 65%)</p>
-                </div>
+                <ColorPicker
+                  label="Cor Principal"
+                  hslValue={design.primaryColor}
+                  onChange={(value) => updateDesign({ primaryColor: value })}
+                />
                 
-                <div>
-                  <label className="text-sm font-medium text-foreground">Cor de Fundo (HSL)</label>
-                  <input
-                    type="text"
-                    value={design.backgroundColor}
-                    onChange={(e) => updateDesign({ backgroundColor: e.target.value })}
-                    placeholder="15 60% 95%"
-                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
-                  />
-                </div>
+                <ColorPicker
+                  label="Cor de Fundo"
+                  hslValue={design.backgroundColor}
+                  onChange={(value) => updateDesign({ backgroundColor: value })}
+                />
                 
-                <div>
-                  <label className="text-sm font-medium text-foreground">Cor do Card (HSL)</label>
-                  <input
-                    type="text"
-                    value={design.cardBackground}
-                    onChange={(e) => updateDesign({ cardBackground: e.target.value })}
-                    placeholder="0 0% 100%"
-                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
-                  />
-                </div>
+                <ColorPicker
+                  label="Cor do Card"
+                  hslValue={design.cardBackground}
+                  onChange={(value) => updateDesign({ cardBackground: value })}
+                />
                 
-                <div>
-                  <label className="text-sm font-medium text-foreground">Cor de Destaque (HSL)</label>
-                  <input
-                    type="text"
-                    value={design.accentColor}
-                    onChange={(e) => updateDesign({ accentColor: e.target.value })}
-                    placeholder="340 70% 55%"
-                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
-                  />
-                </div>
+                <ColorPicker
+                  label="Cor de Destaque"
+                  hslValue={design.accentColor}
+                  onChange={(value) => updateDesign({ accentColor: value })}
+                />
               </div>
             </div>
 
