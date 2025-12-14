@@ -1,10 +1,10 @@
 import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMenu } from "@/contexts/MenuContext";
-import { useDesign, CardLayout } from "@/contexts/DesignContext";
+import { useDesign, CardLayout, CustomFont } from "@/contexts/DesignContext";
 import { useCheckout } from "@/contexts/CheckoutContext";
 import { Navigate } from "react-router-dom";
-import { LogOut, Plus, Trash2, Edit2, Save, X, RotateCcw, Upload, Image, Package, Minus, Palette, Settings, List, Layers } from "lucide-react";
+import { LogOut, Plus, Trash2, Edit2, Save, X, RotateCcw, Upload, Image, Package, Minus, Palette, Settings, List, Layers, Type } from "lucide-react";
 import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -12,15 +12,6 @@ import { ColorPicker } from "@/components/admin/ColorPicker";
 import { CategoryManager } from "@/components/admin/CategoryManager";
 import { CheckoutStepsManager } from "@/components/admin/CheckoutStepsManager";
 
-const FONT_OPTIONS = [
-  { value: "Pacifico", label: "Pacifico (Cursiva)" },
-  { value: "Poppins", label: "Poppins" },
-  { value: "Roboto", label: "Roboto" },
-  { value: "Inter", label: "Inter" },
-  { value: "Montserrat", label: "Montserrat" },
-  { value: "Open Sans", label: "Open Sans" },
-  { value: "Lato", label: "Lato" },
-];
 
 const LAYOUT_OPTIONS: { value: CardLayout; label: string; description: string }[] = [
   { value: "left-filled", label: "Imagem à esquerda (Preenchido)", description: "Card com fundo colorido e imagem à esquerda" },
@@ -36,7 +27,7 @@ type TabType = "items" | "categories" | "extras" | "drinks" | "acai" | "checkout
 const Admin = () => {
   const { isAuthenticated, logout } = useAuth();
   const { config, updateMenuItem, addMenuItem, deleteMenuItem, updateExtra, addExtra, deleteExtra, updateDrinkOption, addDrinkOption, deleteDrinkOption, addAcaiTurbineItem, removeAcaiTurbineItem, updateAcaiTurbineItem, updateCategories, resetToDefault } = useMenu();
-  const { design, updateDesign, resetDesign } = useDesign();
+  const { design, updateDesign, resetDesign, addCustomFont, removeCustomFont, getAllFonts } = useDesign();
   const { config: checkoutConfig, updateStep, addStep, deleteStep, reorderSteps, resetToDefault: resetCheckout } = useCheckout();
   
   const [activeTab, setActiveTab] = useState<TabType>("categories");
@@ -48,6 +39,8 @@ const Admin = () => {
   const [showAddExtra, setShowAddExtra] = useState(false);
   const [showAddDrink, setShowAddDrink] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [newFontName, setNewFontName] = useState("");
+  const [newFontUrl, setNewFontUrl] = useState("");
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -814,7 +807,7 @@ const Admin = () => {
             {/* Fonts Section */}
             <div className="p-4 rounded-xl bg-card border border-border space-y-4">
               <div className="flex items-center gap-2 mb-2">
-                <Settings className="w-5 h-5 text-brand-pink" />
+                <Type className="w-5 h-5 text-brand-pink" />
                 <h3 className="font-bold text-foreground">Fontes</h3>
               </div>
               
@@ -826,9 +819,9 @@ const Admin = () => {
                     onChange={(e) => updateDesign({ fontDisplay: e.target.value })}
                     className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
                   >
-                    {FONT_OPTIONS.map((font) => (
-                      <option key={font.value} value={font.value}>
-                        {font.label}
+                    {getAllFonts().map((font) => (
+                      <option key={font} value={font}>
+                        {font}
                       </option>
                     ))}
                   </select>
@@ -841,14 +834,85 @@ const Admin = () => {
                     onChange={(e) => updateDesign({ fontBody: e.target.value })}
                     className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
                   >
-                    {FONT_OPTIONS.map((font) => (
-                      <option key={font.value} value={font.value}>
-                        {font.label}
+                    {getAllFonts().map((font) => (
+                      <option key={font} value={font}>
+                        {font}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
+
+              {/* Add Custom Font */}
+              <div className="border-t border-border pt-4 mt-4">
+                <h4 className="text-sm font-medium text-foreground mb-3">Adicionar Fonte do Google</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Nome da Fonte</label>
+                    <input
+                      type="text"
+                      value={newFontName}
+                      onChange={(e) => setNewFontName(e.target.value)}
+                      placeholder="Ex: Momo Signature"
+                      className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">URL do Google Fonts</label>
+                    <input
+                      type="text"
+                      value={newFontUrl}
+                      onChange={(e) => setNewFontUrl(e.target.value)}
+                      placeholder="https://fonts.googleapis.com/css2?family=..."
+                      className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (newFontName.trim() && newFontUrl.trim()) {
+                        addCustomFont({ name: newFontName.trim(), url: newFontUrl.trim() });
+                        setNewFontName("");
+                        setNewFontUrl("");
+                        toast.success(`Fonte "${newFontName}" adicionada!`);
+                      } else {
+                        toast.error("Preencha o nome e URL da fonte");
+                      }
+                    }}
+                    className="w-full py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Adicionar Fonte
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Fonts List */}
+              {design.customFonts.length > 0 && (
+                <div className="border-t border-border pt-4 mt-4">
+                  <h4 className="text-sm font-medium text-foreground mb-3">Fontes Personalizadas</h4>
+                  <div className="space-y-2">
+                    {design.customFonts.map((font) => (
+                      <div
+                        key={font.name}
+                        className="flex items-center justify-between p-3 rounded-xl bg-muted"
+                      >
+                        <span className="font-medium text-foreground" style={{ fontFamily: font.name }}>
+                          {font.name}
+                        </span>
+                        <button
+                          onClick={() => {
+                            removeCustomFont(font.name);
+                            toast.success(`Fonte "${font.name}" removida!`);
+                          }}
+                          className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Layout Section */}
