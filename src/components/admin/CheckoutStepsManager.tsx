@@ -5,9 +5,16 @@ import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+interface Category {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface CheckoutStepsManagerProps {
   steps: CheckoutStep[];
   menuItems: MenuItem[];
+  categories: Category[];
   onUpdate: (step: CheckoutStep) => void;
   onAdd: (step: CheckoutStep) => void;
   onDelete: (id: string) => void;
@@ -26,6 +33,7 @@ const STEP_TYPE_LABELS: Record<string, string> = {
 export const CheckoutStepsManager = ({
   steps,
   menuItems,
+  categories,
   onUpdate,
   onAdd,
   onDelete,
@@ -43,6 +51,7 @@ export const CheckoutStepsManager = ({
     showForTable: true,
     showCondition: "always",
     triggerItemIds: [],
+    triggerCategoryIds: [],
     options: [],
   });
 
@@ -71,6 +80,7 @@ export const CheckoutStepsManager = ({
       showForTable: newStep.showForTable ?? true,
       showCondition: newStep.showCondition || "always",
       triggerItemIds: newStep.triggerItemIds || [],
+      triggerCategoryIds: newStep.triggerCategoryIds || [],
       options: [],
     });
 
@@ -84,6 +94,7 @@ export const CheckoutStepsManager = ({
       showForTable: true,
       showCondition: "always",
       triggerItemIds: [],
+      triggerCategoryIds: [],
       options: [],
     });
     setShowAddForm(false);
@@ -128,10 +139,22 @@ export const CheckoutStepsManager = ({
     }
   };
 
-  const isBuiltInStep = (id: string) => id === "delivery" || id === "name";
-  const isDataStep = (id: string) => id === "turbinar-shake" || id === "bebida-extra";
+  const toggleCategoryInTriggerList = (step: CheckoutStep, categoryId: string) => {
+    const currentIds = step.triggerCategoryIds || [];
+    const newIds = currentIds.includes(categoryId)
+      ? currentIds.filter(id => id !== categoryId)
+      : [...currentIds, categoryId];
+    
+    if (step === editingStep) {
+      setEditingStep({ ...step, triggerCategoryIds: newIds });
+    } else {
+      onUpdate({ ...step, triggerCategoryIds: newIds });
+    }
+  };
 
-  const renderItemSelector = (step: CheckoutStep, isEditing: boolean) => {
+  const isBuiltInStep = (id: string) => id === "delivery" || id === "name";
+
+  const renderConditionSelector = (step: CheckoutStep, isEditing: boolean) => {
     const currentStep = isEditing && editingStep ? editingStep : step;
     const showCondition = currentStep.showCondition || "always";
     
@@ -139,14 +162,14 @@ export const CheckoutStepsManager = ({
       <div className="space-y-3 mt-3 p-3 rounded-lg bg-muted/50 border border-border">
         <label className="text-sm font-medium text-foreground">Quando mostrar esta etapa?</label>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => {
-              const updated = { ...currentStep, showCondition: "always" as const, triggerItemIds: [] };
+              const updated = { ...currentStep, showCondition: "always" as const, triggerItemIds: [], triggerCategoryIds: [] };
               isEditing ? setEditingStep(updated) : onUpdate(updated);
             }}
             className={cn(
-              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors",
+              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors min-w-[80px]",
               showCondition === "always"
                 ? "bg-brand-pink text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -156,17 +179,31 @@ export const CheckoutStepsManager = ({
           </button>
           <button
             onClick={() => {
-              const updated = { ...currentStep, showCondition: "specific_items" as const };
+              const updated = { ...currentStep, showCondition: "specific_items" as const, triggerCategoryIds: [] };
               isEditing ? setEditingStep(updated) : onUpdate(updated);
             }}
             className={cn(
-              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors",
+              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors min-w-[80px]",
               showCondition === "specific_items"
                 ? "bg-brand-pink text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
             Itens específicos
+          </button>
+          <button
+            onClick={() => {
+              const updated = { ...currentStep, showCondition: "specific_categories" as const, triggerItemIds: [] };
+              isEditing ? setEditingStep(updated) : onUpdate(updated);
+            }}
+            className={cn(
+              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors min-w-[80px]",
+              showCondition === "specific_categories"
+                ? "bg-brand-pink text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            )}
+          >
+            Categorias
           </button>
         </div>
 
@@ -189,7 +226,7 @@ export const CheckoutStepsManager = ({
                   />
                   <span className="text-sm text-foreground">{item.name}</span>
                   <span className="text-xs text-muted-foreground ml-auto">
-                    {item.category}
+                    {categories.find(c => c.id === item.category)?.name || item.category}
                   </span>
                 </label>
               ))}
@@ -201,8 +238,175 @@ export const CheckoutStepsManager = ({
             )}
           </div>
         )}
+
+        {showCondition === "specific_categories" && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Selecione as categorias que irão mostrar esta etapa:
+            </p>
+            <div className="max-h-48 overflow-y-auto space-y-1">
+              {categories.map((category) => (
+                <label
+                  key={category.id}
+                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-background cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={(currentStep.triggerCategoryIds || []).includes(category.id)}
+                    onChange={() => toggleCategoryInTriggerList(currentStep, category.id)}
+                    className="w-4 h-4 rounded border-border"
+                  />
+                  <span
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: category.color }}
+                  />
+                  <span className="text-sm text-foreground">{category.name}</span>
+                </label>
+              ))}
+            </div>
+            {(currentStep.triggerCategoryIds || []).length > 0 && (
+              <p className="text-xs text-brand-pink">
+                {(currentStep.triggerCategoryIds || []).length} categoria(s) selecionada(s)
+              </p>
+            )}
+          </div>
+        )}
       </div>
     );
+  };
+
+  const renderNewStepConditionSelector = () => {
+    const showCondition = newStep.showCondition || "always";
+    
+    return (
+      <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
+        <label className="text-sm font-medium text-foreground">Quando mostrar esta etapa?</label>
+        
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setNewStep({ ...newStep, showCondition: "always", triggerItemIds: [], triggerCategoryIds: [] })}
+            className={cn(
+              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors min-w-[80px]",
+              showCondition === "always"
+                ? "bg-brand-pink text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            )}
+          >
+            Sempre
+          </button>
+          <button
+            onClick={() => setNewStep({ ...newStep, showCondition: "specific_items", triggerCategoryIds: [] })}
+            className={cn(
+              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors min-w-[80px]",
+              showCondition === "specific_items"
+                ? "bg-brand-pink text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            )}
+          >
+            Itens específicos
+          </button>
+          <button
+            onClick={() => setNewStep({ ...newStep, showCondition: "specific_categories", triggerItemIds: [] })}
+            className={cn(
+              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors min-w-[80px]",
+              showCondition === "specific_categories"
+                ? "bg-brand-pink text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            )}
+          >
+            Categorias
+          </button>
+        </div>
+
+        {showCondition === "specific_items" && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Selecione os itens do cardápio que irão mostrar esta etapa:
+            </p>
+            <div className="max-h-48 overflow-y-auto space-y-1">
+              {menuItems.map((item) => (
+                <label
+                  key={item.id}
+                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-background cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={(newStep.triggerItemIds || []).includes(item.id)}
+                    onChange={() => {
+                      const currentIds = newStep.triggerItemIds || [];
+                      const newIds = currentIds.includes(item.id)
+                        ? currentIds.filter(id => id !== item.id)
+                        : [...currentIds, item.id];
+                      setNewStep({ ...newStep, triggerItemIds: newIds });
+                    }}
+                    className="w-4 h-4 rounded border-border"
+                  />
+                  <span className="text-sm text-foreground">{item.name}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {categories.find(c => c.id === item.category)?.name || item.category}
+                  </span>
+                </label>
+              ))}
+            </div>
+            {(newStep.triggerItemIds || []).length > 0 && (
+              <p className="text-xs text-brand-pink">
+                {(newStep.triggerItemIds || []).length} item(s) selecionado(s)
+              </p>
+            )}
+          </div>
+        )}
+
+        {showCondition === "specific_categories" && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Selecione as categorias que irão mostrar esta etapa:
+            </p>
+            <div className="max-h-48 overflow-y-auto space-y-1">
+              {categories.map((category) => (
+                <label
+                  key={category.id}
+                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-background cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={(newStep.triggerCategoryIds || []).includes(category.id)}
+                    onChange={() => {
+                      const currentIds = newStep.triggerCategoryIds || [];
+                      const newIds = currentIds.includes(category.id)
+                        ? currentIds.filter(id => id !== category.id)
+                        : [...currentIds, category.id];
+                      setNewStep({ ...newStep, triggerCategoryIds: newIds });
+                    }}
+                    className="w-4 h-4 rounded border-border"
+                  />
+                  <span
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: category.color }}
+                  />
+                  <span className="text-sm text-foreground">{category.name}</span>
+                </label>
+              ))}
+            </div>
+            {(newStep.triggerCategoryIds || []).length > 0 && (
+              <p className="text-xs text-brand-pink">
+                {(newStep.triggerCategoryIds || []).length} categoria(s) selecionada(s)
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const getConditionSummary = (step: CheckoutStep) => {
+    const condition = step.showCondition || "always";
+    if (condition === "specific_items") {
+      return `${(step.triggerItemIds || []).length} item(s)`;
+    }
+    if (condition === "specific_categories") {
+      return `${(step.triggerCategoryIds || []).length} categoria(s)`;
+    }
+    return null;
   };
 
   return (
@@ -211,7 +415,7 @@ export const CheckoutStepsManager = ({
         <p className="text-sm text-muted-foreground">
           Configure as etapas que aparecem antes do envio do pedido. Você pode renomear, 
           habilitar/desabilitar, reordenar e adicionar novas etapas. Também pode definir
-          se a etapa aparece sempre ou apenas para itens específicos do cardápio.
+          se a etapa aparece sempre, apenas para itens específicos ou para categorias específicas.
         </p>
       </div>
 
@@ -272,73 +476,7 @@ export const CheckoutStepsManager = ({
             </label>
           </div>
 
-          {/* Show condition for new step */}
-          <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
-            <label className="text-sm font-medium text-foreground">Quando mostrar esta etapa?</label>
-            
-            <div className="flex gap-2">
-              <button
-                onClick={() => setNewStep({ ...newStep, showCondition: "always", triggerItemIds: [] })}
-                className={cn(
-                  "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors",
-                  newStep.showCondition === "always"
-                    ? "bg-brand-pink text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80"
-                )}
-              >
-                Sempre
-              </button>
-              <button
-                onClick={() => setNewStep({ ...newStep, showCondition: "specific_items" })}
-                className={cn(
-                  "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors",
-                  newStep.showCondition === "specific_items"
-                    ? "bg-brand-pink text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80"
-                )}
-              >
-                Itens específicos
-              </button>
-            </div>
-
-            {newStep.showCondition === "specific_items" && (
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  Selecione os itens do cardápio que irão mostrar esta etapa:
-                </p>
-                <div className="max-h-48 overflow-y-auto space-y-1">
-                  {menuItems.map((item) => (
-                    <label
-                      key={item.id}
-                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-background cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={(newStep.triggerItemIds || []).includes(item.id)}
-                        onChange={() => {
-                          const currentIds = newStep.triggerItemIds || [];
-                          const newIds = currentIds.includes(item.id)
-                            ? currentIds.filter(id => id !== item.id)
-                            : [...currentIds, item.id];
-                          setNewStep({ ...newStep, triggerItemIds: newIds });
-                        }}
-                        className="w-4 h-4 rounded border-border"
-                      />
-                      <span className="text-sm text-foreground">{item.name}</span>
-                      <span className="text-xs text-muted-foreground ml-auto">
-                        {item.category}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                {(newStep.triggerItemIds || []).length > 0 && (
-                  <p className="text-xs text-brand-pink">
-                    {(newStep.triggerItemIds || []).length} item(s) selecionado(s)
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
+          {renderNewStepConditionSelector()}
 
           <div className="flex gap-2">
             <button
@@ -420,7 +558,7 @@ export const CheckoutStepsManager = ({
                     </label>
                   </div>
 
-                  {renderItemSelector(step, true)}
+                  {renderConditionSelector(step, true)}
                 </>
               )}
 
@@ -467,18 +605,13 @@ export const CheckoutStepsManager = ({
                     <span className="px-2 py-0.5 rounded bg-muted">
                       {STEP_TYPE_LABELS[step.type] || step.type}
                     </span>
-                    {isDataStep(step.id) && (
-                      <span className="text-brand-pink">
-                        (usa dados do cardápio)
-                      </span>
-                    )}
                     {isBuiltInStep(step.id) && (
                       <span className="text-muted-foreground">(obrigatório)</span>
                     )}
-                    {(step.showCondition || "always") === "specific_items" && (
+                    {getConditionSummary(step) && (
                       <span className="flex items-center gap-1 text-brand-pink">
                         <Filter className="w-3 h-3" />
-                        {(step.triggerItemIds || []).length} item(s)
+                        {getConditionSummary(step)}
                       </span>
                     )}
                   </div>
