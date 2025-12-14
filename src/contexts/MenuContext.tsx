@@ -17,6 +17,7 @@ interface MenuContextType {
   addAcaiTurbineItem: (item: { name: string; stock?: number }) => void;
   removeAcaiTurbineItem: (index: number) => void;
   updateAcaiTurbineItem: (index: number, item: { name: string; stock?: number }) => void;
+  updateCategories: (categories: { id: string; name: string; color: string }[]) => void;
   resetToDefault: () => void;
 }
 
@@ -120,6 +121,13 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  const updateCategories = (categories: { id: string; name: string; color: string }[]) => {
+    setConfig((prev) => ({
+      ...prev,
+      categories,
+    }));
+  };
+
   const resetToDefault = () => {
     const defaultConfig = resetMenuConfig();
     setConfig(defaultConfig);
@@ -142,6 +150,7 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
         addAcaiTurbineItem,
         removeAcaiTurbineItem,
         updateAcaiTurbineItem,
+        updateCategories,
         resetToDefault,
       }}
     >
