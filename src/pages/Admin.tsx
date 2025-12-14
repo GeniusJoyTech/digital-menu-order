@@ -1,17 +1,38 @@
 import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMenu } from "@/contexts/MenuContext";
+import { useDesign, CardLayout } from "@/contexts/DesignContext";
 import { Navigate } from "react-router-dom";
-import { LogOut, Plus, Trash2, Edit2, Save, X, RotateCcw, Upload, Image, Package, Minus } from "lucide-react";
+import { LogOut, Plus, Trash2, Edit2, Save, X, RotateCcw, Upload, Image, Package, Minus, Palette, Settings } from "lucide-react";
 import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+const FONT_OPTIONS = [
+  { value: "Pacifico", label: "Pacifico (Cursiva)" },
+  { value: "Poppins", label: "Poppins" },
+  { value: "Roboto", label: "Roboto" },
+  { value: "Inter", label: "Inter" },
+  { value: "Montserrat", label: "Montserrat" },
+  { value: "Open Sans", label: "Open Sans" },
+  { value: "Lato", label: "Lato" },
+];
+
+const LAYOUT_OPTIONS: { value: CardLayout; label: string; description: string }[] = [
+  { value: "left-filled", label: "Imagem à esquerda (Preenchido)", description: "Card com fundo colorido e imagem à esquerda" },
+  { value: "right-filled", label: "Imagem à direita (Preenchido)", description: "Card com fundo colorido e imagem à direita" },
+  { value: "left-bordered", label: "Imagem à esquerda (Bordas)", description: "Card com borda e imagem à esquerda" },
+  { value: "right-bordered", label: "Imagem à direita (Bordas)", description: "Card com borda e imagem à direita" },
+  { value: "left", label: "Imagem à esquerda (Simples)", description: "Card simples com imagem à esquerda" },
+  { value: "right", label: "Imagem à direita (Simples)", description: "Card simples com imagem à direita" },
+];
+
 const Admin = () => {
   const { isAuthenticated, logout } = useAuth();
   const { config, updateMenuItem, addMenuItem, deleteMenuItem, updateExtra, addExtra, deleteExtra, updateDrinkOption, addDrinkOption, deleteDrinkOption, addAcaiTurbineItem, removeAcaiTurbineItem, updateAcaiTurbineItem, resetToDefault } = useMenu();
+  const { design, updateDesign, resetDesign } = useDesign();
   
-  const [activeTab, setActiveTab] = useState<"items" | "extras" | "drinks" | "acai" | "stock">("items");
+  const [activeTab, setActiveTab] = useState<"items" | "extras" | "drinks" | "acai" | "stock" | "design">("items");
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [editingExtra, setEditingExtra] = useState<{ id: string; name: string; price: number } | null>(null);
   const [editingDrink, setEditingDrink] = useState<{ id: string; name: string; price: number } | null>(null);
@@ -19,6 +40,7 @@ const Admin = () => {
   const [showAddItem, setShowAddItem] = useState(false);
   const [showAddExtra, setShowAddExtra] = useState(false);
   const [showAddDrink, setShowAddDrink] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -139,6 +161,7 @@ const Admin = () => {
             { id: "drinks", label: "Água/Refrigerante" },
             { id: "acai", label: "Turbinar Açaí" },
             { id: "stock", label: "Estoque" },
+            { id: "design", label: "Configurações" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -586,6 +609,216 @@ const Admin = () => {
                 </button>
               </div>
             ))}
+          </div>
+        )}
+
+        {activeTab === "design" && (
+          <div className="space-y-6">
+            {/* Logo Section */}
+            <div className="p-4 rounded-xl bg-card border border-border space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Image className="w-5 h-5 text-brand-pink" />
+                <h3 className="font-bold text-foreground">Logo da Loja</h3>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted flex items-center justify-center border-2 border-border">
+                  {design.logo ? (
+                    <img src={design.logo} alt="Logo" className="w-full h-full object-cover" />
+                  ) : (
+                    <Image className="w-10 h-10 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 2 * 1024 * 1024) {
+                          toast.error("Imagem muito grande. Máximo 2MB.");
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          updateDesign({ logo: reader.result as string });
+                          toast.success("Logo atualizada!");
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Upload Logo
+                  </button>
+                  {design.logo && (
+                    <button
+                      onClick={() => {
+                        updateDesign({ logo: "" });
+                        toast.success("Logo removida!");
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Remover Logo
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-foreground">Nome da Loja</label>
+                <input
+                  type="text"
+                  value={design.storeName}
+                  onChange={(e) => updateDesign({ storeName: e.target.value })}
+                  className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+                />
+              </div>
+            </div>
+
+            {/* Colors Section */}
+            <div className="p-4 rounded-xl bg-card border border-border space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Palette className="w-5 h-5 text-brand-pink" />
+                <h3 className="font-bold text-foreground">Cores</h3>
+              </div>
+              
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium text-foreground">Cor Principal (HSL)</label>
+                  <input
+                    type="text"
+                    value={design.primaryColor}
+                    onChange={(e) => updateDesign({ primaryColor: e.target.value })}
+                    placeholder="340 75% 65%"
+                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Formato: H S% L% (ex: 340 75% 65%)</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-foreground">Cor de Fundo (HSL)</label>
+                  <input
+                    type="text"
+                    value={design.backgroundColor}
+                    onChange={(e) => updateDesign({ backgroundColor: e.target.value })}
+                    placeholder="15 60% 95%"
+                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-foreground">Cor do Card (HSL)</label>
+                  <input
+                    type="text"
+                    value={design.cardBackground}
+                    onChange={(e) => updateDesign({ cardBackground: e.target.value })}
+                    placeholder="0 0% 100%"
+                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-foreground">Cor de Destaque (HSL)</label>
+                  <input
+                    type="text"
+                    value={design.accentColor}
+                    onChange={(e) => updateDesign({ accentColor: e.target.value })}
+                    placeholder="340 70% 55%"
+                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Fonts Section */}
+            <div className="p-4 rounded-xl bg-card border border-border space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Settings className="w-5 h-5 text-brand-pink" />
+                <h3 className="font-bold text-foreground">Fontes</h3>
+              </div>
+              
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium text-foreground">Fonte de Títulos</label>
+                  <select
+                    value={design.fontDisplay}
+                    onChange={(e) => updateDesign({ fontDisplay: e.target.value })}
+                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+                  >
+                    {FONT_OPTIONS.map((font) => (
+                      <option key={font.value} value={font.value}>
+                        {font.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-foreground">Fonte do Corpo</label>
+                  <select
+                    value={design.fontBody}
+                    onChange={(e) => updateDesign({ fontBody: e.target.value })}
+                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+                  >
+                    {FONT_OPTIONS.map((font) => (
+                      <option key={font.value} value={font.value}>
+                        {font.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Layout Section */}
+            <div className="p-4 rounded-xl bg-card border border-border space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Package className="w-5 h-5 text-brand-pink" />
+                <h3 className="font-bold text-foreground">Layout dos Cards</h3>
+              </div>
+              
+              <div className="grid gap-3">
+                {LAYOUT_OPTIONS.map((layout) => (
+                  <button
+                    key={layout.value}
+                    onClick={() => updateDesign({ cardLayout: layout.value })}
+                    className={cn(
+                      "p-4 rounded-xl border-2 text-left transition-all",
+                      design.cardLayout === layout.value
+                        ? "border-brand-pink bg-brand-pink/10"
+                        : "border-border bg-background hover:border-brand-pink/50"
+                    )}
+                  >
+                    <h4 className="font-bold text-foreground text-sm">{layout.label}</h4>
+                    <p className="text-xs text-muted-foreground mt-1">{layout.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Reset Button */}
+            <button
+              onClick={() => {
+                if (confirm("Tem certeza que deseja restaurar as configurações de design padrão?")) {
+                  resetDesign();
+                  toast.success("Design restaurado!");
+                }
+              }}
+              className="w-full py-3 rounded-xl bg-muted text-muted-foreground font-bold hover:bg-muted/80 flex items-center justify-center gap-2"
+            >
+              <RotateCcw className="w-5 h-5" />
+              Restaurar Design Padrão
+            </button>
           </div>
         )}
       </div>
