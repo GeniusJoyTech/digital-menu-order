@@ -4,7 +4,7 @@ import { useMenu } from "@/contexts/MenuContext";
 import { useDesign, CardLayout, CustomFont } from "@/contexts/DesignContext";
 import { useCheckout } from "@/contexts/CheckoutContext";
 import { Navigate } from "react-router-dom";
-import { LogOut, Plus, Trash2, Edit2, Save, X, RotateCcw, Upload, Image, Package, Minus, Palette, Settings, List, Layers, Type } from "lucide-react";
+import { LogOut, Plus, Trash2, Edit2, Save, X, Upload, Image, Package, Minus, Palette, Settings, List, Layers, Type, ShoppingBag } from "lucide-react";
 import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -22,7 +22,7 @@ const LAYOUT_OPTIONS: { value: CardLayout; label: string; description: string }[
   { value: "right", label: "Imagem à direita (Simples)", description: "Card simples com imagem à direita" },
 ];
 
-type TabType = "items" | "categories" | "extras" | "drinks" | "acai" | "checkout" | "stock" | "design";
+type TabType = "orders" | "items" | "categories" | "checkout" | "stock" | "design";
 
 const Admin = () => {
   const { isAuthenticated, logout } = useAuth();
@@ -30,11 +30,10 @@ const Admin = () => {
   const { design, updateDesign, resetDesign, addCustomFont, removeCustomFont, getAllFonts } = useDesign();
   const { config: checkoutConfig, updateStep, addStep, deleteStep, reorderSteps, resetToDefault: resetCheckout } = useCheckout();
   
-  const [activeTab, setActiveTab] = useState<TabType>("categories");
+  const [activeTab, setActiveTab] = useState<TabType>("orders");
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [editingExtra, setEditingExtra] = useState<{ id: string; name: string; price: number } | null>(null);
   const [editingDrink, setEditingDrink] = useState<{ id: string; name: string; price: number } | null>(null);
-  const [newAcaiItem, setNewAcaiItem] = useState("");
   const [showAddItem, setShowAddItem] = useState(false);
   const [showAddExtra, setShowAddExtra] = useState(false);
   const [showAddDrink, setShowAddDrink] = useState(false);
@@ -107,33 +106,11 @@ const Admin = () => {
     }
   };
 
-  const handleAddAcaiItem = () => {
-    if (newAcaiItem.trim()) {
-      addAcaiTurbineItem({ name: newAcaiItem.trim() });
-      setNewAcaiItem("");
-      toast.success("Item adicionado!");
-    }
-  };
-
-  const handleRemoveAcaiItem = (index: number) => {
-    removeAcaiTurbineItem(index);
-    toast.success("Item removido!");
-  };
-
-  const handleReset = () => {
-    if (confirm("Tem certeza que deseja restaurar o estilo do site para o padrão? Apenas as configurações de design serão afetadas, não os itens do cardápio.")) {
-      resetDesign();
-      toast.success("Estilo do site restaurado!");
-    }
-  };
-
   const tabs: { id: TabType; label: string; icon?: React.ReactNode }[] = [
+    { id: "orders", label: "Pedidos", icon: <ShoppingBag className="w-4 h-4" /> },
     { id: "categories", label: "Categorias", icon: <Layers className="w-4 h-4" /> },
     { id: "items", label: "Itens do Cardápio" },
     { id: "checkout", label: "Etapas do Pedido", icon: <List className="w-4 h-4" /> },
-    { id: "extras", label: "Turbinar Shake" },
-    { id: "drinks", label: "Água/Refrigerante" },
-    { id: "acai", label: "Turbinar Açaí" },
     { id: "stock", label: "Estoque" },
     { id: "design", label: "Configurações" },
   ];
@@ -144,22 +121,13 @@ const Admin = () => {
       <header className="bg-card border-b border-border sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="font-display text-2xl text-brand-pink">Administração</h1>
-          <div className="flex gap-2">
-            <button
-              onClick={handleReset}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Restaurar
-            </button>
-            <button
-              onClick={logout}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Sair
-            </button>
-          </div>
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            Sair
+          </button>
         </div>
       </header>
 
@@ -186,6 +154,24 @@ const Admin = () => {
 
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 pb-8">
+        {activeTab === "orders" && (
+          <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-muted/50 border border-border">
+              <p className="text-sm text-muted-foreground">
+                Os pedidos recebidos via WhatsApp aparecerão aqui. Esta funcionalidade requer integração com um backend.
+              </p>
+            </div>
+            
+            <div className="text-center py-12">
+              <ShoppingBag className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+              <h3 className="font-bold text-foreground text-lg mb-2">Nenhum pedido ainda</h3>
+              <p className="text-muted-foreground text-sm">
+                Os pedidos enviados pelos clientes aparecerão aqui.
+              </p>
+            </div>
+          </div>
+        )}
+
         {activeTab === "items" && (
           <div className="space-y-4">
             <button
@@ -258,168 +244,11 @@ const Admin = () => {
           />
         )}
 
-        {activeTab === "extras" && (
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-muted/50 border border-border">
-              <p className="text-sm text-muted-foreground">
-                Gerencie os itens extras para turbinar o shake. Adicione, edite nome e preço, ou remova opções.
-              </p>
-            </div>
-            
-            <button
-              onClick={() => {
-                setEditingExtra(null);
-                setShowAddExtra(true);
-              }}
-              className="flex items-center gap-2 px-4 py-3 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90 transition-colors w-full justify-center"
-            >
-              <Plus className="w-5 h-5" />
-              Adicionar Extra
-            </button>
-
-            {config.extras.map((extra) => (
-              <div
-                key={extra.id}
-                className={cn(
-                  "flex items-center gap-3 p-4 rounded-xl bg-card border border-border",
-                  extra.stock === 0 && "opacity-50"
-                )}
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-foreground">{extra.name}</h3>
-                    {extra.stock === 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">Esgotado</span>
-                    )}
-                  </div>
-                  <p className="text-brand-pink font-bold">
-                    R$ {extra.price.toFixed(2).replace(".", ",")}
-                    {extra.stock !== undefined && extra.stock > 0 && (
-                      <span className="text-muted-foreground text-xs font-normal ml-2">Estoque: {extra.stock}</span>
-                    )}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setEditingExtra(extra)}
-                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteExtra(extra.id)}
-                    className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === "drinks" && (
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-muted/50 border border-border">
-              <p className="text-sm text-muted-foreground">
-                Gerencie as opções de bebidas extras (água e refrigerante). Adicione, edite ou remova opções.
-              </p>
-            </div>
-            
-            <button
-              onClick={() => {
-                setEditingDrink(null);
-                setShowAddDrink(true);
-              }}
-              className="flex items-center gap-2 px-4 py-3 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90 transition-colors w-full justify-center"
-            >
-              <Plus className="w-5 h-5" />
-              Adicionar Bebida
-            </button>
-
-            {config.drinkOptions.map((drink) => (
-              <div
-                key={drink.id}
-                className={cn(
-                  "flex items-center gap-3 p-4 rounded-xl bg-card border border-border",
-                  drink.stock === 0 && drink.id !== "none" && "opacity-50"
-                )}
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-foreground">{drink.name}</h3>
-                    {drink.stock === 0 && drink.id !== "none" && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">Esgotado</span>
-                    )}
-                  </div>
-                  {drink.price > 0 && (
-                    <p className="text-brand-pink font-bold">
-                      R$ {drink.price.toFixed(2).replace(".", ",")}
-                      {drink.stock !== undefined && drink.stock > 0 && (
-                        <span className="text-muted-foreground text-xs font-normal ml-2">Estoque: {drink.stock}</span>
-                      )}
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setEditingDrink(drink)}
-                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteDrink(drink.id)}
-                    className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === "acai" && (
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newAcaiItem}
-                onChange={(e) => setNewAcaiItem(e.target.value)}
-                placeholder="Nome do item..."
-                className="flex-1 p-3 rounded-xl border border-border bg-card text-foreground"
-                onKeyDown={(e) => e.key === "Enter" && handleAddAcaiItem()}
-              />
-              <button
-                onClick={handleAddAcaiItem}
-                className="px-4 py-3 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-            </div>
-
-            {config.acaiTurbine.map((item, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border"
-              >
-                <span className="flex-1 font-medium text-foreground">{item.name}</span>
-                <button
-                  onClick={() => handleRemoveAcaiItem(index)}
-                  className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
         {activeTab === "checkout" && (
           <CheckoutStepsManager
             steps={checkoutConfig.steps}
             menuItems={config.menuItems}
+            categories={config.categories}
             onUpdate={updateStep}
             onAdd={addStep}
             onDelete={deleteStep}
@@ -429,126 +258,83 @@ const Admin = () => {
 
         {activeTab === "stock" && (
           <div className="space-y-6">
-            <div className="p-4 rounded-xl bg-muted/50 border border-border">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Package className="w-5 h-5 text-brand-pink" />
-                  <h3 className="font-bold text-foreground">Controle de Estoque</h3>
-                </div>
-                <button
-                  onClick={() => {
-                    if (confirm("Restaurar estoque de todos os itens para ilimitado?")) {
-                      config.menuItems.forEach(item => {
-                        updateMenuItem({ ...item, stock: undefined });
-                      });
-                      config.extras.forEach(extra => {
-                        updateExtra({ ...extra, stock: undefined });
-                      });
-                      config.drinkOptions.forEach(drink => {
-                        if (drink.id !== "none") {
-                          updateDrinkOption({ ...drink, stock: undefined });
-                        }
-                      });
-                      config.acaiTurbine.forEach((item, index) => {
-                        updateAcaiTurbineItem(index, { ...item, stock: undefined });
-                      });
-                      toast.success("Estoque restaurado para ilimitado!");
-                    }
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 text-sm"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  Restaurar Estoque
-                </button>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Ajuste a quantidade em estoque de cada produto. Itens com estoque 0 ficam marcados como "Esgotado". 
-                Deixe vazio para estoque ilimitado.
-              </p>
-            </div>
-
             {/* Menu Items Stock */}
             <div className="space-y-4">
-              <h2 className="font-display text-xl text-brand-pink">Produtos do Cardápio</h2>
-              {config.categories.map((category) => (
-                <div key={category.id} className="space-y-2">
-                  <h3 className="font-bold text-foreground text-sm">{category.name}</h3>
-                  {config.menuItems
-                    .filter((item) => item.category === category.id)
-                    .map((item) => (
-                      <div
-                        key={item.id}
-                        className={cn(
-                          "flex items-center gap-3 p-3 rounded-xl bg-card border border-border",
-                          item.stock === 0 && "border-destructive/50 bg-destructive/5"
-                        )}
-                      >
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-foreground text-sm">{item.name}</h3>
-                          {item.stock === 0 && (
-                            <span className="text-xs text-destructive font-medium">Esgotado</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              const currentStock = item.stock ?? 0;
-                              if (currentStock > 0) {
-                                updateMenuItem({ ...item, stock: currentStock - 1 });
-                              }
-                            }}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <input
-                            type="number"
-                            value={item.stock ?? ""}
-                            onChange={(e) => {
-                              const value = e.target.value === "" ? undefined : parseInt(e.target.value) || 0;
-                              updateMenuItem({ ...item, stock: value });
-                            }}
-                            placeholder="∞"
-                            className="w-16 p-2 text-center rounded-lg border border-border bg-background text-foreground font-bold"
-                            min="0"
-                          />
-                          <button
-                            onClick={() => {
-                              const currentStock = item.stock ?? 0;
-                              updateMenuItem({ ...item, stock: currentStock + 1 });
-                            }}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+              <h2 className="font-display text-xl text-brand-pink">Itens do Cardápio</h2>
+              {config.menuItems.map((item) => (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "flex items-center gap-3 p-4 rounded-xl bg-card border border-border",
+                    item.stock === 0 && "opacity-50"
+                  )}
+                >
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-foreground text-sm">{item.name}</h3>
+                      {item.stock === 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">Esgotado</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {item.stock === undefined ? "Estoque ilimitado" : `Estoque: ${item.stock}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const currentStock = item.stock ?? 0;
+                        if (currentStock > 0) {
+                          updateMenuItem({ ...item, stock: currentStock - 1 });
+                        }
+                      }}
+                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <span className="w-12 text-center font-bold text-foreground">
+                      {item.stock ?? "∞"}
+                    </span>
+                    <button
+                      onClick={() => {
+                        const currentStock = item.stock ?? 0;
+                        updateMenuItem({ ...item, stock: currentStock + 1 });
+                      }}
+                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
 
             {/* Extras Stock */}
-            <div className="space-y-2">
-              <h2 className="font-display text-xl text-brand-pink">Turbinar Shake</h2>
+            <div className="space-y-4">
+              <h2 className="font-display text-xl text-brand-pink">Extras (Turbinar)</h2>
               {config.extras.map((extra) => (
                 <div
                   key={extra.id}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl bg-card border border-border",
-                    extra.stock === 0 && "border-destructive/50 bg-destructive/5"
+                    "flex items-center gap-3 p-4 rounded-xl bg-card border border-border",
+                    extra.stock === 0 && "opacity-50"
                   )}
                 >
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-foreground text-sm">{extra.name}</h3>
-                    {extra.stock === 0 && (
-                      <span className="text-xs text-destructive font-medium">Esgotado</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-foreground text-sm">{extra.name}</h3>
+                      {extra.stock === 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">Esgotado</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {extra.stock === undefined ? "Estoque ilimitado" : `Estoque: ${extra.stock}`}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -558,27 +344,19 @@ const Admin = () => {
                           updateExtra({ ...extra, stock: currentStock - 1 });
                         }
                       }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
                     >
                       <Minus className="w-4 h-4" />
                     </button>
-                    <input
-                      type="number"
-                      value={extra.stock ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? undefined : parseInt(e.target.value) || 0;
-                        updateExtra({ ...extra, stock: value });
-                      }}
-                      placeholder="∞"
-                      className="w-16 p-2 text-center rounded-lg border border-border bg-background text-foreground font-bold"
-                      min="0"
-                    />
+                    <span className="w-12 text-center font-bold text-foreground">
+                      {extra.stock ?? "∞"}
+                    </span>
                     <button
                       onClick={() => {
                         const currentStock = extra.stock ?? 0;
                         updateExtra({ ...extra, stock: currentStock + 1 });
                       }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -588,21 +366,26 @@ const Admin = () => {
             </div>
 
             {/* Drinks Stock */}
-            <div className="space-y-2">
-              <h2 className="font-display text-xl text-brand-pink">Água/Refrigerante</h2>
+            <div className="space-y-4">
+              <h2 className="font-display text-xl text-brand-pink">Bebidas</h2>
               {config.drinkOptions.filter(d => d.id !== "none").map((drink) => (
                 <div
                   key={drink.id}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl bg-card border border-border",
-                    drink.stock === 0 && "border-destructive/50 bg-destructive/5"
+                    "flex items-center gap-3 p-4 rounded-xl bg-card border border-border",
+                    drink.stock === 0 && "opacity-50"
                   )}
                 >
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-foreground text-sm">{drink.name}</h3>
-                    {drink.stock === 0 && (
-                      <span className="text-xs text-destructive font-medium">Esgotado</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-foreground text-sm">{drink.name}</h3>
+                      {drink.stock === 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">Esgotado</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {drink.stock === undefined ? "Estoque ilimitado" : `Estoque: ${drink.stock}`}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -612,27 +395,19 @@ const Admin = () => {
                           updateDrinkOption({ ...drink, stock: currentStock - 1 });
                         }
                       }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
                     >
                       <Minus className="w-4 h-4" />
                     </button>
-                    <input
-                      type="number"
-                      value={drink.stock ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? undefined : parseInt(e.target.value) || 0;
-                        updateDrinkOption({ ...drink, stock: value });
-                      }}
-                      placeholder="∞"
-                      className="w-16 p-2 text-center rounded-lg border border-border bg-background text-foreground font-bold"
-                      min="0"
-                    />
+                    <span className="w-12 text-center font-bold text-foreground">
+                      {drink.stock ?? "∞"}
+                    </span>
                     <button
                       onClick={() => {
                         const currentStock = drink.stock ?? 0;
                         updateDrinkOption({ ...drink, stock: currentStock + 1 });
                       }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -642,21 +417,26 @@ const Admin = () => {
             </div>
 
             {/* Açaí Turbine Stock */}
-            <div className="space-y-2">
+            <div className="space-y-4">
               <h2 className="font-display text-xl text-brand-pink">Turbinar Açaí</h2>
               {config.acaiTurbine.map((item, index) => (
                 <div
                   key={index}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl bg-card border border-border",
-                    item.stock === 0 && "border-destructive/50 bg-destructive/5"
+                    "flex items-center gap-3 p-4 rounded-xl bg-card border border-border",
+                    item.stock === 0 && "opacity-50"
                   )}
                 >
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-foreground text-sm">{item.name}</h3>
-                    {item.stock === 0 && (
-                      <span className="text-xs text-destructive font-medium">Esgotado</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-foreground text-sm">{item.name}</h3>
+                      {item.stock === 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">Esgotado</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {item.stock === undefined ? "Estoque ilimitado" : `Estoque: ${item.stock}`}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -666,27 +446,19 @@ const Admin = () => {
                           updateAcaiTurbineItem(index, { ...item, stock: currentStock - 1 });
                         }
                       }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
                     >
                       <Minus className="w-4 h-4" />
                     </button>
-                    <input
-                      type="number"
-                      value={item.stock ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? undefined : parseInt(e.target.value) || 0;
-                        updateAcaiTurbineItem(index, { ...item, stock: value });
-                      }}
-                      placeholder="∞"
-                      className="w-16 p-2 text-center rounded-lg border border-border bg-background text-foreground font-bold"
-                      min="0"
-                    />
+                    <span className="w-12 text-center font-bold text-foreground">
+                      {item.stock ?? "∞"}
+                    </span>
                     <button
                       onClick={() => {
                         const currentStock = item.stock ?? 0;
                         updateAcaiTurbineItem(index, { ...item, stock: currentStock + 1 });
                       }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -729,7 +501,6 @@ const Admin = () => {
                         const reader = new FileReader();
                         reader.onloadend = () => {
                           updateDesign({ logo: reader.result as string });
-                          toast.success("Logo atualizada!");
                         };
                         reader.readAsDataURL(file);
                       }
@@ -748,7 +519,6 @@ const Admin = () => {
                     <button
                       onClick={() => {
                         updateDesign({ logo: "" });
-                        toast.success("Logo removida!");
                       }}
                       className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
                     >
@@ -941,18 +711,15 @@ const Admin = () => {
               </div>
             </div>
 
-            {/* Reset Button */}
+            {/* Save Button */}
             <button
               onClick={() => {
-                if (confirm("Tem certeza que deseja restaurar as configurações de design padrão?")) {
-                  resetDesign();
-                  toast.success("Design restaurado!");
-                }
+                toast.success("Configurações salvas com sucesso!");
               }}
-              className="w-full py-3 rounded-xl bg-muted text-muted-foreground font-bold hover:bg-muted/80 flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 flex items-center justify-center gap-2"
             >
-              <RotateCcw className="w-5 h-5" />
-              Restaurar Design Padrão
+              <Save className="w-5 h-5" />
+              Salvar Configurações
             </button>
           </div>
         )}
@@ -1133,7 +900,7 @@ const ItemFormModal = ({
                   <Image className="w-8 h-8 text-muted-foreground" />
                 )}
               </div>
-              <div className="flex-1 space-y-2">
+              <div className="flex-1">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1147,15 +914,8 @@ const ItemFormModal = ({
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
                 >
                   <Upload className="w-4 h-4" />
-                  Upload Foto
+                  Upload
                 </button>
-                <input
-                  type="text"
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  placeholder="Ou cole URL da imagem..."
-                  className="w-full p-2 rounded-lg border border-border bg-background text-foreground text-sm"
-                />
               </div>
             </div>
           </div>
@@ -1164,11 +924,10 @@ const ItemFormModal = ({
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-foreground">Preços</label>
               <button
-                type="button"
                 onClick={addPrice}
-                className="text-brand-pink text-sm font-medium"
+                className="text-xs px-2 py-1 rounded bg-brand-pink text-primary-foreground"
               >
-                + Adicionar tamanho
+                + Tamanho
               </button>
             </div>
             {formData.prices.map((price, index) => (
@@ -1177,7 +936,7 @@ const ItemFormModal = ({
                   type="text"
                   value={price.size}
                   onChange={(e) => handlePriceChange(index, "size", e.target.value)}
-                  placeholder="Tamanho (ex: 500ml)"
+                  placeholder="Tamanho"
                   className="flex-1 p-3 rounded-xl border border-border bg-background text-foreground"
                 />
                 <input
@@ -1190,7 +949,6 @@ const ItemFormModal = ({
                 />
                 {formData.prices.length > 1 && (
                   <button
-                    type="button"
                     onClick={() => removePrice(index)}
                     className="p-3 rounded-xl bg-destructive/10 text-destructive"
                   >
@@ -1204,17 +962,14 @@ const ItemFormModal = ({
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold hover:bg-muted/80 flex items-center justify-center gap-2"
+              className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold hover:bg-muted/80"
             >
-              <X className="w-5 h-5" />
               Cancelar
             </button>
             <button
               onClick={() => onSave(formData)}
-              disabled={!formData.name || formData.prices.some((p) => !p.size || p.price <= 0)}
-              className="flex-1 py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90"
             >
-              <Save className="w-5 h-5" />
               Salvar
             </button>
           </div>
@@ -1230,12 +985,16 @@ const ExtraFormModal = ({
   onSave,
   onClose,
 }: {
-  extra: { id: string; name: string; price: number; stock?: number } | null;
-  onSave: (extra: { id: string; name: string; price: number; stock?: number }) => void;
+  extra: { id: string; name: string; price: number } | null;
+  onSave: (extra: { id: string; name: string; price: number }) => void;
   onClose: () => void;
 }) => {
   const [formData, setFormData] = useState(
-    extra || { id: `extra-${Date.now()}`, name: "", price: 0, stock: undefined as number | undefined }
+    extra || {
+      id: `extra-${Date.now()}`,
+      name: "",
+      price: 0,
+    }
   );
 
   return (
@@ -1273,35 +1032,17 @@ const ExtraFormModal = ({
             />
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-foreground">Estoque</label>
-            <input
-              type="number"
-              value={formData.stock ?? ""}
-              onChange={(e) => setFormData({ ...formData, stock: e.target.value === "" ? undefined : parseInt(e.target.value) || 0 })}
-              placeholder="Deixe vazio para ilimitado"
-              className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
-              min="0"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Deixe vazio para estoque ilimitado. Zero = Esgotado.
-            </p>
-          </div>
-
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold hover:bg-muted/80 flex items-center justify-center gap-2"
+              className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold hover:bg-muted/80"
             >
-              <X className="w-5 h-5" />
               Cancelar
             </button>
             <button
               onClick={() => onSave(formData)}
-              disabled={!formData.name || formData.price <= 0}
-              className="flex-1 py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90"
             >
-              <Save className="w-5 h-5" />
               Salvar
             </button>
           </div>
@@ -1317,12 +1058,16 @@ const DrinkFormModal = ({
   onSave,
   onClose,
 }: {
-  drink: { id: string; name: string; price: number; stock?: number } | null;
-  onSave: (drink: { id: string; name: string; price: number; stock?: number }) => void;
+  drink: { id: string; name: string; price: number } | null;
+  onSave: (drink: { id: string; name: string; price: number }) => void;
   onClose: () => void;
 }) => {
   const [formData, setFormData] = useState(
-    drink || { id: `drink-${Date.now()}`, name: "", price: 0, stock: undefined as number | undefined }
+    drink || {
+      id: `drink-${Date.now()}`,
+      name: "",
+      price: 0,
+    }
   );
 
   return (
@@ -1357,39 +1102,20 @@ const DrinkFormModal = ({
               onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
               className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
               step="0.01"
-              min="0"
             />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-foreground">Estoque</label>
-            <input
-              type="number"
-              value={formData.stock ?? ""}
-              onChange={(e) => setFormData({ ...formData, stock: e.target.value === "" ? undefined : parseInt(e.target.value) || 0 })}
-              placeholder="Deixe vazio para ilimitado"
-              className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
-              min="0"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Deixe vazio para estoque ilimitado. Zero = Esgotado.
-            </p>
           </div>
 
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold hover:bg-muted/80 flex items-center justify-center gap-2"
+              className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold hover:bg-muted/80"
             >
-              <X className="w-5 h-5" />
               Cancelar
             </button>
             <button
               onClick={() => onSave(formData)}
-              disabled={!formData.name}
-              className="flex-1 py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90"
             >
-              <Save className="w-5 h-5" />
               Salvar
             </button>
           </div>
