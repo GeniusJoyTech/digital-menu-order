@@ -247,6 +247,12 @@ const Admin = () => {
 
         {activeTab === "extras" && (
           <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-muted/50 border border-border">
+              <p className="text-sm text-muted-foreground">
+                Gerencie os itens extras para turbinar o shake. Adicione, edite nome e preço, ou remova opções.
+              </p>
+            </div>
+            
             <button
               onClick={() => {
                 setEditingExtra(null);
@@ -261,12 +267,23 @@ const Admin = () => {
             {config.extras.map((extra) => (
               <div
                 key={extra.id}
-                className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border"
+                className={cn(
+                  "flex items-center gap-3 p-4 rounded-xl bg-card border border-border",
+                  extra.stock === 0 && "opacity-50"
+                )}
               >
                 <div className="flex-1">
-                  <h3 className="font-bold text-foreground">{extra.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-foreground">{extra.name}</h3>
+                    {extra.stock === 0 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">Esgotado</span>
+                    )}
+                  </div>
                   <p className="text-brand-pink font-bold">
                     R$ {extra.price.toFixed(2).replace(".", ",")}
+                    {extra.stock !== undefined && extra.stock > 0 && (
+                      <span className="text-muted-foreground text-xs font-normal ml-2">Estoque: {extra.stock}</span>
+                    )}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -290,6 +307,12 @@ const Admin = () => {
 
         {activeTab === "drinks" && (
           <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-muted/50 border border-border">
+              <p className="text-sm text-muted-foreground">
+                Gerencie as opções de bebidas extras (água e refrigerante). Adicione, edite ou remova opções.
+              </p>
+            </div>
+            
             <button
               onClick={() => {
                 setEditingDrink(null);
@@ -304,13 +327,24 @@ const Admin = () => {
             {config.drinkOptions.map((drink) => (
               <div
                 key={drink.id}
-                className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border"
+                className={cn(
+                  "flex items-center gap-3 p-4 rounded-xl bg-card border border-border",
+                  drink.stock === 0 && drink.id !== "none" && "opacity-50"
+                )}
               >
                 <div className="flex-1">
-                  <h3 className="font-bold text-foreground">{drink.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-foreground">{drink.name}</h3>
+                    {drink.stock === 0 && drink.id !== "none" && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">Esgotado</span>
+                    )}
+                  </div>
                   {drink.price > 0 && (
                     <p className="text-brand-pink font-bold">
                       R$ {drink.price.toFixed(2).replace(".", ",")}
+                      {drink.stock !== undefined && drink.stock > 0 && (
+                        <span className="text-muted-foreground text-xs font-normal ml-2">Estoque: {drink.stock}</span>
+                      )}
                     </p>
                   )}
                 </div>
@@ -336,9 +370,36 @@ const Admin = () => {
         {activeTab === "stock" && (
           <div className="space-y-6">
             <div className="p-4 rounded-xl bg-muted/50 border border-border">
-              <div className="flex items-center gap-2 mb-2">
-                <Package className="w-5 h-5 text-brand-pink" />
-                <h3 className="font-bold text-foreground">Controle de Estoque</h3>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Package className="w-5 h-5 text-brand-pink" />
+                  <h3 className="font-bold text-foreground">Controle de Estoque</h3>
+                </div>
+                <button
+                  onClick={() => {
+                    if (confirm("Restaurar estoque de todos os itens para ilimitado?")) {
+                      config.menuItems.forEach(item => {
+                        updateMenuItem({ ...item, stock: undefined });
+                      });
+                      config.extras.forEach(extra => {
+                        updateExtra({ ...extra, stock: undefined });
+                      });
+                      config.drinkOptions.forEach(drink => {
+                        if (drink.id !== "none") {
+                          updateDrinkOption({ ...drink, stock: undefined });
+                        }
+                      });
+                      config.acaiTurbine.forEach((item, index) => {
+                        updateAcaiTurbineItem(index, { ...item, stock: undefined });
+                      });
+                      toast.success("Estoque restaurado para ilimitado!");
+                    }
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 text-sm"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Restaurar Estoque
+                </button>
               </div>
               <p className="text-sm text-muted-foreground">
                 Ajuste a quantidade em estoque de cada produto. Itens com estoque 0 ficam marcados como "Esgotado". 
@@ -1066,14 +1127,23 @@ const ItemFormModal = ({
             ))}
           </div>
 
-          <button
-            onClick={() => onSave(formData)}
-            disabled={!formData.name || formData.prices.some((p) => !p.size || p.price <= 0)}
-            className="w-full py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            <Save className="w-5 h-5" />
-            Salvar
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold hover:bg-muted/80 flex items-center justify-center gap-2"
+            >
+              <X className="w-5 h-5" />
+              Cancelar
+            </button>
+            <button
+              onClick={() => onSave(formData)}
+              disabled={!formData.name || formData.prices.some((p) => !p.size || p.price <= 0)}
+              className="flex-1 py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Save className="w-5 h-5" />
+              Salvar
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1086,12 +1156,12 @@ const ExtraFormModal = ({
   onSave,
   onClose,
 }: {
-  extra: { id: string; name: string; price: number } | null;
-  onSave: (extra: { id: string; name: string; price: number }) => void;
+  extra: { id: string; name: string; price: number; stock?: number } | null;
+  onSave: (extra: { id: string; name: string; price: number; stock?: number }) => void;
   onClose: () => void;
 }) => {
   const [formData, setFormData] = useState(
-    extra || { id: `extra-${Date.now()}`, name: "", price: 0 }
+    extra || { id: `extra-${Date.now()}`, name: "", price: 0, stock: undefined as number | undefined }
   );
 
   return (
@@ -1129,14 +1199,38 @@ const ExtraFormModal = ({
             />
           </div>
 
-          <button
-            onClick={() => onSave(formData)}
-            disabled={!formData.name || formData.price <= 0}
-            className="w-full py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            <Save className="w-5 h-5" />
-            Salvar
-          </button>
+          <div>
+            <label className="text-sm font-medium text-foreground">Estoque</label>
+            <input
+              type="number"
+              value={formData.stock ?? ""}
+              onChange={(e) => setFormData({ ...formData, stock: e.target.value === "" ? undefined : parseInt(e.target.value) || 0 })}
+              placeholder="Deixe vazio para ilimitado"
+              className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+              min="0"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Deixe vazio para estoque ilimitado. Zero = Esgotado.
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold hover:bg-muted/80 flex items-center justify-center gap-2"
+            >
+              <X className="w-5 h-5" />
+              Cancelar
+            </button>
+            <button
+              onClick={() => onSave(formData)}
+              disabled={!formData.name || formData.price <= 0}
+              className="flex-1 py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Save className="w-5 h-5" />
+              Salvar
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1149,12 +1243,12 @@ const DrinkFormModal = ({
   onSave,
   onClose,
 }: {
-  drink: { id: string; name: string; price: number } | null;
-  onSave: (drink: { id: string; name: string; price: number }) => void;
+  drink: { id: string; name: string; price: number; stock?: number } | null;
+  onSave: (drink: { id: string; name: string; price: number; stock?: number }) => void;
   onClose: () => void;
 }) => {
   const [formData, setFormData] = useState(
-    drink || { id: `drink-${Date.now()}`, name: "", price: 0 }
+    drink || { id: `drink-${Date.now()}`, name: "", price: 0, stock: undefined as number | undefined }
   );
 
   return (
@@ -1193,14 +1287,38 @@ const DrinkFormModal = ({
             />
           </div>
 
-          <button
-            onClick={() => onSave(formData)}
-            disabled={!formData.name}
-            className="w-full py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            <Save className="w-5 h-5" />
-            Salvar
-          </button>
+          <div>
+            <label className="text-sm font-medium text-foreground">Estoque</label>
+            <input
+              type="number"
+              value={formData.stock ?? ""}
+              onChange={(e) => setFormData({ ...formData, stock: e.target.value === "" ? undefined : parseInt(e.target.value) || 0 })}
+              placeholder="Deixe vazio para ilimitado"
+              className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+              min="0"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Deixe vazio para estoque ilimitado. Zero = Esgotado.
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold hover:bg-muted/80 flex items-center justify-center gap-2"
+            >
+              <X className="w-5 h-5" />
+              Cancelar
+            </button>
+            <button
+              onClick={() => onSave(formData)}
+              disabled={!formData.name}
+              className="flex-1 py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Save className="w-5 h-5" />
+              Salvar
+            </button>
+          </div>
         </div>
       </div>
     </div>
