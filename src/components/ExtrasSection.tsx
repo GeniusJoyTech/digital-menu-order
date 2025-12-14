@@ -1,10 +1,12 @@
-import { extras, acaiTurbine } from "@/data/menuData";
+import { useMenu } from "@/contexts/MenuContext";
 
 interface ExtrasSectionProps {
   onAddExtra: (name: string, price: number) => void;
 }
 
 const ExtrasSection = ({ onAddExtra }: ExtrasSectionProps) => {
+  const { config } = useMenu();
+
   return (
     <section className="mb-8 bg-pastel-yellow rounded-2xl p-4">
       <h3 className="font-display text-2xl text-center text-foreground mb-4">
@@ -12,7 +14,7 @@ const ExtrasSection = ({ onAddExtra }: ExtrasSectionProps) => {
       </h3>
       
       <div className="space-y-2">
-        {extras.map((extra) => (
+        {config.extras.map((extra) => (
           <button
             key={extra.id}
             onClick={() => onAddExtra(extra.name, extra.price)}
@@ -31,7 +33,7 @@ const ExtrasSection = ({ onAddExtra }: ExtrasSectionProps) => {
           Turbine seu açaí por mais R$6,00
         </h4>
         <p className="text-xs text-center text-muted-foreground">
-          {acaiTurbine.join(", ")}
+          {config.acaiTurbine.join(", ")}
         </p>
       </div>
     </section>

@@ -1,13 +1,15 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import MenuHeader from "@/components/MenuHeader";
 import CategoryNav from "@/components/CategoryNav";
 import CategorySection from "@/components/CategorySection";
 import ExtrasSection from "@/components/ExtrasSection";
 import Cart from "@/components/Cart";
-import { menuItems, menuCategories, MenuItem as MenuItemType, CartItem } from "@/data/menuData";
+import { MenuItem as MenuItemType, CartItem } from "@/data/menuData";
+import { useMenu } from "@/contexts/MenuContext";
 
 const Index = () => {
-  const [activeCategory, setActiveCategory] = useState(menuCategories[0].id);
+  const { config } = useMenu();
+  const [activeCategory, setActiveCategory] = useState(config.categories[0]?.id || "tradicionais");
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
@@ -116,8 +118,8 @@ const Index = () => {
         </div>
 
         {/* Categories */}
-        {menuCategories.map((category) => {
-          const categoryItems = menuItems.filter((item) => item.category === category.id);
+        {config.categories.map((category) => {
+          const categoryItems = config.menuItems.filter((item) => item.category === category.id);
           return (
             <div
               key={category.id}
