@@ -39,7 +39,7 @@ const Admin = () => {
   const { design, updateDesign, resetDesign } = useDesign();
   const { config: checkoutConfig, updateStep, addStep, deleteStep, reorderSteps, resetToDefault: resetCheckout } = useCheckout();
   
-  const [activeTab, setActiveTab] = useState<TabType>("items");
+  const [activeTab, setActiveTab] = useState<TabType>("categories");
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [editingExtra, setEditingExtra] = useState<{ id: string; name: string; price: number } | null>(null);
   const [editingDrink, setEditingDrink] = useState<{ id: string; name: string; price: number } | null>(null);
@@ -128,20 +128,19 @@ const Admin = () => {
   };
 
   const handleReset = () => {
-    if (confirm("Tem certeza que deseja restaurar todas as configurações padrão? Isso irá apagar todas as alterações.")) {
-      resetToDefault();
-      resetCheckout();
-      toast.success("Configurações restauradas!");
+    if (confirm("Tem certeza que deseja restaurar o estilo do site para o padrão? Apenas as configurações de design serão afetadas, não os itens do cardápio.")) {
+      resetDesign();
+      toast.success("Estilo do site restaurado!");
     }
   };
 
   const tabs: { id: TabType; label: string; icon?: React.ReactNode }[] = [
-    { id: "items", label: "Itens do Cardápio" },
     { id: "categories", label: "Categorias", icon: <Layers className="w-4 h-4" /> },
+    { id: "items", label: "Itens do Cardápio" },
+    { id: "checkout", label: "Etapas do Pedido", icon: <List className="w-4 h-4" /> },
     { id: "extras", label: "Turbinar Shake" },
     { id: "drinks", label: "Água/Refrigerante" },
     { id: "acai", label: "Turbinar Açaí" },
-    { id: "checkout", label: "Etapas do Pedido", icon: <List className="w-4 h-4" /> },
     { id: "stock", label: "Estoque" },
     { id: "design", label: "Configurações" },
   ];
