@@ -183,29 +183,38 @@ const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormP
           </p>
           
           <div className="grid grid-cols-1 gap-2 max-h-[40vh] overflow-y-auto">
-            {turbinarOptions.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleTurbinarToggle(item.id)}
-                className={cn(
-                  "flex items-center justify-between p-3 rounded-xl border-2 transition-all",
-                  turbinarItems.includes(item.id)
-                    ? "border-brand-pink bg-pastel-pink"
-                    : "border-border bg-card hover:border-brand-pink/50"
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <Plus className={cn(
-                    "w-5 h-5 transition-transform",
-                    turbinarItems.includes(item.id) ? "rotate-45 text-brand-pink" : "text-muted-foreground"
-                  )} />
-                  <span className="font-medium text-foreground">{item.name}</span>
-                </div>
-                <span className="text-brand-pink font-bold">
-                  +R$ {item.price.toFixed(2).replace(".", ",")}
-                </span>
-              </button>
-            ))}
+            {turbinarOptions.map((item) => {
+              const isOutOfStock = item.stock === 0;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => !isOutOfStock && handleTurbinarToggle(item.id)}
+                  disabled={isOutOfStock}
+                  className={cn(
+                    "flex items-center justify-between p-3 rounded-xl border-2 transition-all",
+                    isOutOfStock
+                      ? "border-border bg-muted opacity-50 cursor-not-allowed"
+                      : turbinarItems.includes(item.id)
+                        ? "border-brand-pink bg-pastel-pink"
+                        : "border-border bg-card hover:border-brand-pink/50"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <Plus className={cn(
+                      "w-5 h-5 transition-transform",
+                      turbinarItems.includes(item.id) ? "rotate-45 text-brand-pink" : "text-muted-foreground"
+                    )} />
+                    <span className={cn("font-medium text-foreground", isOutOfStock && "line-through")}>
+                      {item.name}
+                      {isOutOfStock && <span className="ml-2 text-xs text-destructive">(Esgotado)</span>}
+                    </span>
+                  </div>
+                  <span className="text-brand-pink font-bold">
+                    +R$ {item.price.toFixed(2).replace(".", ",")}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       );
@@ -220,25 +229,34 @@ const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormP
           </h3>
           
           <div className="grid grid-cols-1 gap-2">
-            {drinkOptions.map((drink) => (
-              <button
-                key={drink.id}
-                onClick={() => setExtraDrink(drink.id)}
-                className={cn(
-                  "flex items-center justify-between p-4 rounded-xl border-2 transition-all",
-                  extraDrink === drink.id
-                    ? "border-brand-pink bg-pastel-pink"
-                    : "border-border bg-card hover:border-brand-pink/50"
-                )}
-              >
-                <span className="font-medium text-foreground">{drink.name}</span>
-                {drink.price > 0 && (
-                  <span className="text-brand-pink font-bold">
-                    +R$ {drink.price.toFixed(2).replace(".", ",")}
+            {drinkOptions.map((drink) => {
+              const isOutOfStock = drink.stock === 0 && drink.id !== "none";
+              return (
+                <button
+                  key={drink.id}
+                  onClick={() => !isOutOfStock && setExtraDrink(drink.id)}
+                  disabled={isOutOfStock}
+                  className={cn(
+                    "flex items-center justify-between p-4 rounded-xl border-2 transition-all",
+                    isOutOfStock
+                      ? "border-border bg-muted opacity-50 cursor-not-allowed"
+                      : extraDrink === drink.id
+                        ? "border-brand-pink bg-pastel-pink"
+                        : "border-border bg-card hover:border-brand-pink/50"
+                  )}
+                >
+                  <span className={cn("font-medium text-foreground", isOutOfStock && "line-through")}>
+                    {drink.name}
+                    {isOutOfStock && <span className="ml-2 text-xs text-destructive">(Esgotado)</span>}
                   </span>
-                )}
-              </button>
-            ))}
+                  {drink.price > 0 && (
+                    <span className="text-brand-pink font-bold">
+                      +R$ {drink.price.toFixed(2).replace(".", ",")}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       );

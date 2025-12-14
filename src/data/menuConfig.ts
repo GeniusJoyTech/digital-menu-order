@@ -4,10 +4,10 @@ const STORAGE_KEY = "shakeyes_menu_config";
 
 export interface MenuConfig {
   menuItems: MenuItem[];
-  extras: { id: string; name: string; price: number }[];
+  extras: { id: string; name: string; price: number; stock?: number }[];
   categories: { id: string; name: string; color: string }[];
-  drinkOptions: { id: string; name: string; price: number }[];
-  acaiTurbine: string[];
+  drinkOptions: { id: string; name: string; price: number; stock?: number }[];
+  acaiTurbine: { name: string; stock?: number }[];
 }
 
 const defaultDrinkOptions = [
@@ -18,14 +18,14 @@ const defaultDrinkOptions = [
 ];
 
 const defaultAcaiTurbine = [
-  "Leite em pó",
-  "Leite ninho",
-  "Paçoca",
-  "Granola",
-  "Ovomaltine",
-  "Nutella",
-  "Bis",
-  "Frutas"
+  { name: "Leite em pó" },
+  { name: "Leite ninho" },
+  { name: "Paçoca" },
+  { name: "Granola" },
+  { name: "Ovomaltine" },
+  { name: "Nutella" },
+  { name: "Bis" },
+  { name: "Frutas" }
 ];
 
 const getDefaultConfig = (): MenuConfig => ({
