@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 const Admin = () => {
   const { isAuthenticated, logout } = useAuth();
-  const { config, updateMenuItem, addMenuItem, deleteMenuItem, updateExtra, addExtra, deleteExtra, updateDrinkOption, addDrinkOption, deleteDrinkOption, updateAcaiTurbine, resetToDefault } = useMenu();
+  const { config, updateMenuItem, addMenuItem, deleteMenuItem, updateExtra, addExtra, deleteExtra, updateDrinkOption, addDrinkOption, deleteDrinkOption, addAcaiTurbineItem, removeAcaiTurbineItem, updateAcaiTurbineItem, resetToDefault } = useMenu();
   
   const [activeTab, setActiveTab] = useState<"items" | "extras" | "drinks" | "acai" | "stock">("items");
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -87,15 +87,14 @@ const Admin = () => {
 
   const handleAddAcaiItem = () => {
     if (newAcaiItem.trim()) {
-      updateAcaiTurbine([...config.acaiTurbine, newAcaiItem.trim()]);
+      addAcaiTurbineItem({ name: newAcaiItem.trim() });
       setNewAcaiItem("");
       toast.success("Item adicionado!");
     }
   };
 
   const handleRemoveAcaiItem = (index: number) => {
-    const newItems = config.acaiTurbine.filter((_, i) => i !== index);
-    updateAcaiTurbine(newItems);
+    removeAcaiTurbineItem(index);
     toast.success("Item removido!");
   };
 
@@ -312,7 +311,7 @@ const Admin = () => {
         )}
 
         {activeTab === "stock" && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="p-4 rounded-xl bg-muted/50 border border-border">
               <div className="flex items-center gap-2 mb-2">
                 <Package className="w-5 h-5 text-brand-pink" />
@@ -324,67 +323,233 @@ const Admin = () => {
               </p>
             </div>
 
-            {config.categories.map((category) => (
-              <div key={category.id} className="space-y-2">
-                <h2 className="font-display text-lg text-brand-pink">{category.name}</h2>
-                {config.menuItems
-                  .filter((item) => item.category === category.id)
-                  .map((item) => (
-                    <div
-                      key={item.id}
-                      className={cn(
-                        "flex items-center gap-3 p-3 rounded-xl bg-card border border-border",
-                        item.stock === 0 && "border-destructive/50 bg-destructive/5"
-                      )}
-                    >
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-foreground text-sm">{item.name}</h3>
-                        {item.stock === 0 && (
-                          <span className="text-xs text-destructive font-medium">Esgotado</span>
+            {/* Menu Items Stock */}
+            <div className="space-y-4">
+              <h2 className="font-display text-xl text-brand-pink">Produtos do Cardápio</h2>
+              {config.categories.map((category) => (
+                <div key={category.id} className="space-y-2">
+                  <h3 className="font-bold text-foreground text-sm">{category.name}</h3>
+                  {config.menuItems
+                    .filter((item) => item.category === category.id)
+                    .map((item) => (
+                      <div
+                        key={item.id}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-xl bg-card border border-border",
+                          item.stock === 0 && "border-destructive/50 bg-destructive/5"
                         )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            const currentStock = item.stock ?? 0;
-                            if (currentStock > 0) {
-                              updateMenuItem({ ...item, stock: currentStock - 1 });
-                            }
-                          }}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </button>
-                        <input
-                          type="number"
-                          value={item.stock ?? ""}
-                          onChange={(e) => {
-                            const value = e.target.value === "" ? undefined : parseInt(e.target.value) || 0;
-                            updateMenuItem({ ...item, stock: value });
-                          }}
-                          placeholder="∞"
-                          className="w-16 p-2 text-center rounded-lg border border-border bg-background text-foreground font-bold"
-                          min="0"
+                      >
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-10 h-10 rounded-full object-cover"
                         />
-                        <button
-                          onClick={() => {
-                            const currentStock = item.stock ?? 0;
-                            updateMenuItem({ ...item, stock: currentStock + 1 });
-                          }}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-foreground text-sm">{item.name}</h3>
+                          {item.stock === 0 && (
+                            <span className="text-xs text-destructive font-medium">Esgotado</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              const currentStock = item.stock ?? 0;
+                              if (currentStock > 0) {
+                                updateMenuItem({ ...item, stock: currentStock - 1 });
+                              }
+                            }}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <input
+                            type="number"
+                            value={item.stock ?? ""}
+                            onChange={(e) => {
+                              const value = e.target.value === "" ? undefined : parseInt(e.target.value) || 0;
+                              updateMenuItem({ ...item, stock: value });
+                            }}
+                            placeholder="∞"
+                            className="w-16 p-2 text-center rounded-lg border border-border bg-background text-foreground font-bold"
+                            min="0"
+                          />
+                          <button
+                            onClick={() => {
+                              const currentStock = item.stock ?? 0;
+                              updateMenuItem({ ...item, stock: currentStock + 1 });
+                            }}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-              </div>
-            ))}
+                    ))}
+                </div>
+              ))}
+            </div>
+
+            {/* Extras Stock */}
+            <div className="space-y-2">
+              <h2 className="font-display text-xl text-brand-pink">Turbinar Shake</h2>
+              {config.extras.map((extra) => (
+                <div
+                  key={extra.id}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl bg-card border border-border",
+                    extra.stock === 0 && "border-destructive/50 bg-destructive/5"
+                  )}
+                >
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-foreground text-sm">{extra.name}</h3>
+                    {extra.stock === 0 && (
+                      <span className="text-xs text-destructive font-medium">Esgotado</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const currentStock = extra.stock ?? 0;
+                        if (currentStock > 0) {
+                          updateExtra({ ...extra, stock: currentStock - 1 });
+                        }
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input
+                      type="number"
+                      value={extra.stock ?? ""}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? undefined : parseInt(e.target.value) || 0;
+                        updateExtra({ ...extra, stock: value });
+                      }}
+                      placeholder="∞"
+                      className="w-16 p-2 text-center rounded-lg border border-border bg-background text-foreground font-bold"
+                      min="0"
+                    />
+                    <button
+                      onClick={() => {
+                        const currentStock = extra.stock ?? 0;
+                        updateExtra({ ...extra, stock: currentStock + 1 });
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Drinks Stock */}
+            <div className="space-y-2">
+              <h2 className="font-display text-xl text-brand-pink">Água/Refrigerante</h2>
+              {config.drinkOptions.filter(d => d.id !== "none").map((drink) => (
+                <div
+                  key={drink.id}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl bg-card border border-border",
+                    drink.stock === 0 && "border-destructive/50 bg-destructive/5"
+                  )}
+                >
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-foreground text-sm">{drink.name}</h3>
+                    {drink.stock === 0 && (
+                      <span className="text-xs text-destructive font-medium">Esgotado</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const currentStock = drink.stock ?? 0;
+                        if (currentStock > 0) {
+                          updateDrinkOption({ ...drink, stock: currentStock - 1 });
+                        }
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input
+                      type="number"
+                      value={drink.stock ?? ""}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? undefined : parseInt(e.target.value) || 0;
+                        updateDrinkOption({ ...drink, stock: value });
+                      }}
+                      placeholder="∞"
+                      className="w-16 p-2 text-center rounded-lg border border-border bg-background text-foreground font-bold"
+                      min="0"
+                    />
+                    <button
+                      onClick={() => {
+                        const currentStock = drink.stock ?? 0;
+                        updateDrinkOption({ ...drink, stock: currentStock + 1 });
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Açaí Turbine Stock */}
+            <div className="space-y-2">
+              <h2 className="font-display text-xl text-brand-pink">Turbinar Açaí</h2>
+              {config.acaiTurbine.map((item, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl bg-card border border-border",
+                    item.stock === 0 && "border-destructive/50 bg-destructive/5"
+                  )}
+                >
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-foreground text-sm">{item.name}</h3>
+                    {item.stock === 0 && (
+                      <span className="text-xs text-destructive font-medium">Esgotado</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const currentStock = item.stock ?? 0;
+                        if (currentStock > 0) {
+                          updateAcaiTurbineItem(index, { ...item, stock: currentStock - 1 });
+                        }
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input
+                      type="number"
+                      value={item.stock ?? ""}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? undefined : parseInt(e.target.value) || 0;
+                        updateAcaiTurbineItem(index, { ...item, stock: value });
+                      }}
+                      placeholder="∞"
+                      className="w-16 p-2 text-center rounded-lg border border-border bg-background text-foreground font-bold"
+                      min="0"
+                    />
+                    <button
+                      onClick={() => {
+                        const currentStock = item.stock ?? 0;
+                        updateAcaiTurbineItem(index, { ...item, stock: currentStock + 1 });
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -412,7 +577,7 @@ const Admin = () => {
                 key={index}
                 className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border"
               >
-                <span className="flex-1 font-medium text-foreground">{item}</span>
+                <span className="flex-1 font-medium text-foreground">{item.name}</span>
                 <button
                   onClick={() => handleRemoveAcaiItem(index)}
                   className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20"

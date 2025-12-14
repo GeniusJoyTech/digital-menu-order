@@ -7,13 +7,16 @@ interface MenuContextType {
   updateMenuItem: (item: MenuItem) => void;
   addMenuItem: (item: MenuItem) => void;
   deleteMenuItem: (id: string) => void;
-  updateExtra: (extra: { id: string; name: string; price: number }) => void;
-  addExtra: (extra: { id: string; name: string; price: number }) => void;
+  updateExtra: (extra: { id: string; name: string; price: number; stock?: number }) => void;
+  addExtra: (extra: { id: string; name: string; price: number; stock?: number }) => void;
   deleteExtra: (id: string) => void;
-  updateDrinkOption: (drink: { id: string; name: string; price: number }) => void;
-  addDrinkOption: (drink: { id: string; name: string; price: number }) => void;
+  updateDrinkOption: (drink: { id: string; name: string; price: number; stock?: number }) => void;
+  addDrinkOption: (drink: { id: string; name: string; price: number; stock?: number }) => void;
   deleteDrinkOption: (id: string) => void;
-  updateAcaiTurbine: (items: string[]) => void;
+  updateAcaiTurbine: (items: { name: string; stock?: number }[]) => void;
+  addAcaiTurbineItem: (item: { name: string; stock?: number }) => void;
+  removeAcaiTurbineItem: (index: number) => void;
+  updateAcaiTurbineItem: (index: number, item: { name: string; stock?: number }) => void;
   resetToDefault: () => void;
 }
 
@@ -47,14 +50,14 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
-  const updateExtra = (extra: { id: string; name: string; price: number }) => {
+  const updateExtra = (extra: { id: string; name: string; price: number; stock?: number }) => {
     setConfig((prev) => ({
       ...prev,
       extras: prev.extras.map((e) => (e.id === extra.id ? extra : e)),
     }));
   };
 
-  const addExtra = (extra: { id: string; name: string; price: number }) => {
+  const addExtra = (extra: { id: string; name: string; price: number; stock?: number }) => {
     setConfig((prev) => ({
       ...prev,
       extras: [...prev.extras, extra],
@@ -68,14 +71,14 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
-  const updateDrinkOption = (drink: { id: string; name: string; price: number }) => {
+  const updateDrinkOption = (drink: { id: string; name: string; price: number; stock?: number }) => {
     setConfig((prev) => ({
       ...prev,
       drinkOptions: prev.drinkOptions.map((d) => (d.id === drink.id ? drink : d)),
     }));
   };
 
-  const addDrinkOption = (drink: { id: string; name: string; price: number }) => {
+  const addDrinkOption = (drink: { id: string; name: string; price: number; stock?: number }) => {
     setConfig((prev) => ({
       ...prev,
       drinkOptions: [...prev.drinkOptions, drink],
@@ -89,10 +92,31 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
-  const updateAcaiTurbine = (items: string[]) => {
+  const updateAcaiTurbine = (items: { name: string; stock?: number }[]) => {
     setConfig((prev) => ({
       ...prev,
       acaiTurbine: items,
+    }));
+  };
+
+  const addAcaiTurbineItem = (item: { name: string; stock?: number }) => {
+    setConfig((prev) => ({
+      ...prev,
+      acaiTurbine: [...prev.acaiTurbine, item],
+    }));
+  };
+
+  const removeAcaiTurbineItem = (index: number) => {
+    setConfig((prev) => ({
+      ...prev,
+      acaiTurbine: prev.acaiTurbine.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateAcaiTurbineItem = (index: number, item: { name: string; stock?: number }) => {
+    setConfig((prev) => ({
+      ...prev,
+      acaiTurbine: prev.acaiTurbine.map((i, idx) => (idx === index ? item : i)),
     }));
   };
 
@@ -115,6 +139,9 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
         addDrinkOption,
         deleteDrinkOption,
         updateAcaiTurbine,
+        addAcaiTurbineItem,
+        removeAcaiTurbineItem,
+        updateAcaiTurbineItem,
         resetToDefault,
       }}
     >
