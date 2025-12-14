@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X, Plus, MapPin, Store, User, Coffee } from "lucide-react";
-import { extras } from "@/data/menuData";
+import { useMenu } from "@/contexts/MenuContext";
 import { cn } from "@/lib/utils";
 
 interface CheckoutFormProps {
@@ -19,16 +19,11 @@ export interface CheckoutData {
   extraDrink: string | null;
 }
 
-const turbinarOptions = extras;
-
-const drinkOptions = [
-  { id: "none", name: "Não, obrigado", price: 0 },
-  { id: "agua", name: "Água", price: 5 },
-  { id: "coca-lata", name: "Coca-Cola Lata", price: 7 },
-  { id: "guarana-lata", name: "Guaraná Lata", price: 7 },
-];
-
 const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormProps) => {
+  const { config } = useMenu();
+  
+  const turbinarOptions = config.extras;
+  const drinkOptions = config.drinkOptions;
   const [step, setStep] = useState(1);
   const [deliveryType, setDeliveryType] = useState<"delivery" | "pickup">("pickup");
   const [address, setAddress] = useState("");

@@ -37,14 +37,14 @@ const MenuItem = ({ item, onAddToCart, bgColor }: MenuItemProps) => {
   return (
     <div 
       className={cn(
-        "group p-3 rounded-2xl transition-all duration-300 hover:scale-[1.02] animate-fade-in",
+        "group p-2 rounded-xl transition-all duration-300 hover:scale-[1.02] animate-fade-in",
         getBgClass()
       )}
     >
-      <div className="flex gap-3">
+      <div className="flex items-center gap-2">
         {/* Circular Image */}
         <div className="relative flex-shrink-0">
-          <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-card shadow-md">
+          <div className="w-16 h-16 rounded-full overflow-hidden border-3 border-card shadow-md">
             <img
               src={item.image}
               alt={item.name}
@@ -55,15 +55,15 @@ const MenuItem = ({ item, onAddToCart, bgColor }: MenuItemProps) => {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-foreground text-sm leading-tight mb-1">
+          <h3 className="font-bold text-foreground text-sm leading-tight">
             {item.name}
           </h3>
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-2 uppercase">
+          <p className="text-[10px] text-muted-foreground line-clamp-2 uppercase leading-tight mt-0.5">
             {item.description}
           </p>
           
-          {/* Prices */}
-          <div className="flex flex-wrap gap-1 text-xs">
+          {/* Prices in single line */}
+          <div className="flex items-center gap-1 text-[10px] mt-1">
             {item.prices.map((price, index) => (
               <button
                 key={price.size}
@@ -78,7 +78,7 @@ const MenuItem = ({ item, onAddToCart, bgColor }: MenuItemProps) => {
                 <span className="font-semibold">{price.size}</span>{" "}
                 <span className={cn(
                   "font-bold",
-                  selectedSize === index ? "text-brand-pink" : "text-primary"
+                  selectedSize === index ? "text-brand-pink" : "text-brand-pink"
                 )}>
                   R${price.price.toFixed(2).replace(".", ",")}
                 </span>
@@ -94,7 +94,7 @@ const MenuItem = ({ item, onAddToCart, bgColor }: MenuItemProps) => {
         <button
           onClick={handleAdd}
           className={cn(
-            "self-center w-8 h-8 flex items-center justify-center rounded-full transition-all duration-300",
+            "flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full transition-all duration-300",
             "bg-brand-pink text-primary-foreground hover:opacity-90",
             isAdding && "scale-90"
           )}

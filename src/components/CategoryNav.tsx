@@ -1,4 +1,4 @@
-import { menuCategories } from "@/data/menuData";
+import { useMenu } from "@/contexts/MenuContext";
 import { cn } from "@/lib/utils";
 
 interface CategoryNavProps {
@@ -7,11 +7,13 @@ interface CategoryNavProps {
 }
 
 const CategoryNav = ({ activeCategory, onCategoryChange }: CategoryNavProps) => {
+  const { config } = useMenu();
+
   return (
     <nav className="sticky top-[72px] z-30 bg-background py-3">
       <div className="container">
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          {menuCategories.map((category) => (
+          {config.categories.map((category) => (
             <button
               key={category.id}
               onClick={() => onCategoryChange(category.id)}
