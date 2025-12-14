@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMenu } from "@/contexts/MenuContext";
 import { Navigate } from "react-router-dom";
-import { LogOut, Plus, Trash2, Edit2, Save, X, RotateCcw } from "lucide-react";
+import { LogOut, Plus, Trash2, Edit2, Save, X, RotateCcw, Upload, Image } from "lucide-react";
 import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -400,6 +400,22 @@ const ItemFormModal = ({
       image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=200&h=200&fit=crop",
     }
   );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert("Imagem muito grande. Máximo 2MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, image: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handlePriceChange = (index: number, field: "size" | "price", value: string | number) => {
     const newPrices = [...formData.prices];
@@ -473,13 +489,40 @@ const ItemFormModal = ({
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground">URL da Imagem</label>
-            <input
-              type="text"
-              value={formData.image}
-              onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-              className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
-            />
+            <label className="text-sm font-medium text-foreground">Imagem</label>
+            <div className="mt-2 flex items-center gap-4">
+              <div className="w-20 h-20 rounded-full overflow-hidden bg-muted flex items-center justify-center border-2 border-border">
+                {formData.image ? (
+                  <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <Image className="w-8 h-8 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload Foto
+                </button>
+                <input
+                  type="text"
+                  value={formData.image}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  placeholder="Ou cole URL da imagem..."
+                  className="w-full p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                />
+              </div>
+            </div>
           </div>
 
           <div>
