@@ -4,6 +4,7 @@ import { ShoppingBag, Plus, Minus, Trash2, Send, X } from "lucide-react";
 import { CartItem, extras } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 import CheckoutForm, { CheckoutData } from "./CheckoutForm";
+import { saveOrder, Order } from "@/data/ordersConfig";
 
 interface CartProps {
   items: CartItem[];
@@ -55,10 +56,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
     
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `👤 *Nome:* ${data.recipientName}\n`;
-    
-    if (data.nameOnCup) {
-      message += `✨ *Nome no copo:* Sim\n`;
-    }
+    message += `📞 *Telefone:* ${data.customerPhone}\n`;
     
     if (data.deliveryType === "delivery" && data.address) {
       message += `📍 *Endereço:* ${data.address}\n`;
@@ -97,6 +95,33 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
     } else {
       message += `🛵 *Delivery*`;
     }
+
+    // Save order to localStorage for admin panel
+    const order: Order = {
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      customerName: data.recipientName,
+      customerPhone: data.customerPhone,
+      deliveryType: isTable ? "table" : data.deliveryType,
+      tableNumber: tableNumber || undefined,
+      address: data.address,
+      items: items.map(item => ({
+        name: item.name,
+        size: item.selectedSize,
+        quantity: item.quantity,
+        price: item.selectedPrice,
+      })),
+      extras: data.turbinarItems.map(itemId => {
+        const extra = extras.find(e => e.id === itemId);
+        return { name: extra?.name || "", price: extra?.price || 0 };
+      }).filter(e => e.name),
+      drink: data.extraDrink && drinkPrices[data.extraDrink] 
+        ? { name: drinkPrices[data.extraDrink].name, price: drinkPrices[data.extraDrink].price }
+        : null,
+      total: finalTotal,
+      status: "pending",
+    };
+    saveOrder(order);
 
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;

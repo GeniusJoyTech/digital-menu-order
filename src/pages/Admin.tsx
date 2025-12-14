@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { ColorPicker } from "@/components/admin/ColorPicker";
 import { CategoryManager } from "@/components/admin/CategoryManager";
 import { CheckoutStepsManager } from "@/components/admin/CheckoutStepsManager";
+import { OrdersManager } from "@/components/admin/OrdersManager";
 
 
 const LAYOUT_OPTIONS: { value: CardLayout; label: string; description: string }[] = [
@@ -155,21 +156,7 @@ const Admin = () => {
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 pb-8">
         {activeTab === "orders" && (
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-muted/50 border border-border">
-              <p className="text-sm text-muted-foreground">
-                Os pedidos recebidos via WhatsApp aparecerão aqui. Esta funcionalidade requer integração com um backend.
-              </p>
-            </div>
-            
-            <div className="text-center py-12">
-              <ShoppingBag className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-              <h3 className="font-bold text-foreground text-lg mb-2">Nenhum pedido ainda</h3>
-              <p className="text-muted-foreground text-sm">
-                Os pedidos enviados pelos clientes aparecerão aqui.
-              </p>
-            </div>
-          </div>
+          <OrdersManager />
         )}
 
         {activeTab === "items" && (

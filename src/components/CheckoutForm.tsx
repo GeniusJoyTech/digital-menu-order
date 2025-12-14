@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Plus, MapPin, Store, User, Coffee } from "lucide-react";
+import { X, Plus, MapPin, Store, User, Coffee, Phone } from "lucide-react";
 import { useMenu } from "@/contexts/MenuContext";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +14,7 @@ export interface CheckoutData {
   deliveryType: "delivery" | "pickup" | "table";
   address?: string;
   recipientName: string;
-  nameOnCup: boolean;
+  customerPhone: string;
   turbinarItems: string[];
   extraDrink: string | null;
 }
@@ -28,7 +28,7 @@ const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormP
   const [deliveryType, setDeliveryType] = useState<"delivery" | "pickup">("pickup");
   const [address, setAddress] = useState("");
   const [recipientName, setRecipientName] = useState("");
-  const [nameOnCup, setNameOnCup] = useState(false);
+  const [customerPhone, setCustomerPhone] = useState("");
   const [turbinarItems, setTurbinarItems] = useState<string[]>([]);
   const [extraDrink, setExtraDrink] = useState<string | null>("none");
 
@@ -50,7 +50,7 @@ const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormP
         deliveryType: isTable ? "table" : deliveryType,
         address: deliveryType === "delivery" ? address : undefined,
         recipientName,
-        nameOnCup,
+        customerPhone,
         turbinarItems,
         extraDrink: extraDrink === "none" ? null : extraDrink,
       });
@@ -63,6 +63,7 @@ const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormP
     }
     if ((!isTable && step === 2) || (isTable && step === 1)) {
       if (recipientName.trim().length < 2) return false;
+      if (customerPhone.trim().length < 10) return false;
     }
     return true;
   };
@@ -149,24 +150,21 @@ const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormP
             />
           </div>
 
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-pastel-pink">
-            <button
-              onClick={() => setNameOnCup(!nameOnCup)}
-              className={cn(
-                "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
-                nameOnCup
-                  ? "bg-brand-pink border-brand-pink"
-                  : "bg-card border-border"
-              )}
-            >
-              {nameOnCup && <span className="text-primary-foreground text-sm">✓</span>}
-            </button>
-            <div>
-              <p className="font-medium text-foreground">Quer o nome no copo?</p>
-              <p className="text-xs text-muted-foreground">
-                Personalizamos o copo com seu nome! ✨
-              </p>
-            </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground flex items-center gap-2">
+              <Phone className="w-4 h-4" />
+              Telefone / WhatsApp
+            </label>
+            <input
+              type="tel"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              placeholder="(00) 00000-0000"
+              className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-pink"
+            />
+            <p className="text-xs text-muted-foreground">
+              Usaremos para confirmar seu pedido
+            </p>
           </div>
         </div>
       );
