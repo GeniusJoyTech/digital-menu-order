@@ -8,6 +8,7 @@ export interface MenuItem {
   }[];
   category: string;
   image: string;
+  stock?: number; // undefined = ilimitado, 0 = esgotado
 }
 
 export interface CartItem extends MenuItem {
