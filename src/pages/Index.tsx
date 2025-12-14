@@ -2,7 +2,6 @@ import { useState, useRef } from "react";
 import MenuHeader from "@/components/MenuHeader";
 import CategoryNav from "@/components/CategoryNav";
 import CategorySection from "@/components/CategorySection";
-import ExtrasSection from "@/components/ExtrasSection";
 import Cart from "@/components/Cart";
 import { MenuItem as MenuItemType, CartItem } from "@/data/menuData";
 import { useMenu } from "@/contexts/MenuContext";
@@ -47,29 +46,6 @@ const Index = () => {
     });
   };
 
-  const handleAddExtra = (name: string, price: number) => {
-    const extraItem: CartItem = {
-      id: `extra-${name.toLowerCase().replace(/\s/g, "-")}`,
-      name: name,
-      description: "",
-      prices: [{ size: "Unidade", price }],
-      category: "extras",
-      image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=200&h=200&fit=crop",
-      selectedSize: "Unidade",
-      selectedPrice: price,
-      quantity: 1,
-    };
-
-    setCartItems((prev) => {
-      const existingIndex = prev.findIndex((item) => item.id === extraItem.id);
-      if (existingIndex >= 0) {
-        const updated = [...prev];
-        updated[existingIndex].quantity += 1;
-        return updated;
-      }
-      return [...prev, extraItem];
-    });
-  };
 
   const handleUpdateQuantity = (itemId: string, size: string, delta: number) => {
     setCartItems((prev) => {
@@ -136,8 +112,7 @@ const Index = () => {
           );
         })}
 
-        {/* Extras Section */}
-        <ExtrasSection onAddExtra={handleAddExtra} />
+        {/* Extras Section removed - managed via checkout steps */}
 
         {/* Footer Info */}
         <div className="text-center mt-8 text-sm text-muted-foreground">
