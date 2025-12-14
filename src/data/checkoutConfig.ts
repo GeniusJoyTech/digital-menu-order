@@ -24,6 +24,8 @@ export interface CheckoutStep {
   options: CheckoutStepOption[];
   showForTable: boolean; // Whether to show this step for table orders
   skipForPickup?: boolean; // Skip for pickup orders (only show for delivery)
+  showCondition: "always" | "specific_items"; // When to show this step
+  triggerItemIds?: string[]; // Item IDs that trigger this step (when showCondition is "specific_items")
 }
 
 const STORAGE_KEY = "shakeyes_checkout_config";
@@ -39,6 +41,7 @@ export const defaultCheckoutSteps: CheckoutStep[] = [
     multiSelect: false,
     options: [],
     showForTable: false,
+    showCondition: "always",
   },
   {
     id: "name",
@@ -50,6 +53,7 @@ export const defaultCheckoutSteps: CheckoutStep[] = [
     multiSelect: false,
     options: [],
     showForTable: true,
+    showCondition: "always",
   },
   {
     id: "turbinar-shake",
@@ -61,6 +65,7 @@ export const defaultCheckoutSteps: CheckoutStep[] = [
     multiSelect: true,
     options: [], // Uses extras from MenuConfig
     showForTable: true,
+    showCondition: "always",
   },
   {
     id: "bebida-extra",
@@ -72,6 +77,7 @@ export const defaultCheckoutSteps: CheckoutStep[] = [
     multiSelect: false,
     options: [], // Uses drinkOptions from MenuConfig
     showForTable: true,
+    showCondition: "always",
   },
 ];
 

@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Save, X, GripVertical, Eye, EyeOff, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Trash2, Edit2, Save, X, Eye, EyeOff, ChevronUp, ChevronDown, Filter } from "lucide-react";
 import { CheckoutStep } from "@/data/checkoutConfig";
+import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface CheckoutStepsManagerProps {
   steps: CheckoutStep[];
+  menuItems: MenuItem[];
   onUpdate: (step: CheckoutStep) => void;
   onAdd: (step: CheckoutStep) => void;
   onDelete: (id: string) => void;
@@ -23,6 +25,7 @@ const STEP_TYPE_LABELS: Record<string, string> = {
 
 export const CheckoutStepsManager = ({
   steps,
+  menuItems,
   onUpdate,
   onAdd,
   onDelete,
@@ -38,6 +41,8 @@ export const CheckoutStepsManager = ({
     required: false,
     multiSelect: false,
     showForTable: true,
+    showCondition: "always",
+    triggerItemIds: [],
     options: [],
   });
 
@@ -64,6 +69,8 @@ export const CheckoutStepsManager = ({
       required: newStep.required ?? false,
       multiSelect: newStep.multiSelect ?? false,
       showForTable: newStep.showForTable ?? true,
+      showCondition: newStep.showCondition || "always",
+      triggerItemIds: newStep.triggerItemIds || [],
       options: [],
     });
 
@@ -75,6 +82,8 @@ export const CheckoutStepsManager = ({
       required: false,
       multiSelect: false,
       showForTable: true,
+      showCondition: "always",
+      triggerItemIds: [],
       options: [],
     });
     setShowAddForm(false);
@@ -106,15 +115,103 @@ export const CheckoutStepsManager = ({
     toast.success(step.enabled ? "Etapa desabilitada" : "Etapa habilitada");
   };
 
+  const toggleItemInTriggerList = (step: CheckoutStep, itemId: string) => {
+    const currentIds = step.triggerItemIds || [];
+    const newIds = currentIds.includes(itemId)
+      ? currentIds.filter(id => id !== itemId)
+      : [...currentIds, itemId];
+    
+    if (step === editingStep) {
+      setEditingStep({ ...step, triggerItemIds: newIds });
+    } else {
+      onUpdate({ ...step, triggerItemIds: newIds });
+    }
+  };
+
   const isBuiltInStep = (id: string) => id === "delivery" || id === "name";
   const isDataStep = (id: string) => id === "turbinar-shake" || id === "bebida-extra";
+
+  const renderItemSelector = (step: CheckoutStep, isEditing: boolean) => {
+    const currentStep = isEditing && editingStep ? editingStep : step;
+    const showCondition = currentStep.showCondition || "always";
+    
+    return (
+      <div className="space-y-3 mt-3 p-3 rounded-lg bg-muted/50 border border-border">
+        <label className="text-sm font-medium text-foreground">Quando mostrar esta etapa?</label>
+        
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              const updated = { ...currentStep, showCondition: "always" as const, triggerItemIds: [] };
+              isEditing ? setEditingStep(updated) : onUpdate(updated);
+            }}
+            className={cn(
+              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors",
+              showCondition === "always"
+                ? "bg-brand-pink text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            )}
+          >
+            Sempre
+          </button>
+          <button
+            onClick={() => {
+              const updated = { ...currentStep, showCondition: "specific_items" as const };
+              isEditing ? setEditingStep(updated) : onUpdate(updated);
+            }}
+            className={cn(
+              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors",
+              showCondition === "specific_items"
+                ? "bg-brand-pink text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            )}
+          >
+            Itens específicos
+          </button>
+        </div>
+
+        {showCondition === "specific_items" && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Selecione os itens do cardápio que irão mostrar esta etapa:
+            </p>
+            <div className="max-h-48 overflow-y-auto space-y-1">
+              {menuItems.map((item) => (
+                <label
+                  key={item.id}
+                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-background cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={(currentStep.triggerItemIds || []).includes(item.id)}
+                    onChange={() => toggleItemInTriggerList(currentStep, item.id)}
+                    className="w-4 h-4 rounded border-border"
+                  />
+                  <span className="text-sm text-foreground">{item.name}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {item.category}
+                  </span>
+                </label>
+              ))}
+            </div>
+            {(currentStep.triggerItemIds || []).length > 0 && (
+              <p className="text-xs text-brand-pink">
+                {(currentStep.triggerItemIds || []).length} item(s) selecionado(s)
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
       <div className="p-4 rounded-xl bg-muted/50 border border-border">
         <p className="text-sm text-muted-foreground">
           Configure as etapas que aparecem antes do envio do pedido. Você pode renomear, 
-          habilitar/desabilitar, reordenar e adicionar novas etapas.
+          habilitar/desabilitar, reordenar e adicionar novas etapas. Também pode definir
+          se a etapa aparece sempre ou apenas para itens específicos do cardápio.
         </p>
       </div>
 
@@ -175,6 +272,74 @@ export const CheckoutStepsManager = ({
             </label>
           </div>
 
+          {/* Show condition for new step */}
+          <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
+            <label className="text-sm font-medium text-foreground">Quando mostrar esta etapa?</label>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={() => setNewStep({ ...newStep, showCondition: "always", triggerItemIds: [] })}
+                className={cn(
+                  "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors",
+                  newStep.showCondition === "always"
+                    ? "bg-brand-pink text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                Sempre
+              </button>
+              <button
+                onClick={() => setNewStep({ ...newStep, showCondition: "specific_items" })}
+                className={cn(
+                  "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors",
+                  newStep.showCondition === "specific_items"
+                    ? "bg-brand-pink text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                Itens específicos
+              </button>
+            </div>
+
+            {newStep.showCondition === "specific_items" && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Selecione os itens do cardápio que irão mostrar esta etapa:
+                </p>
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {menuItems.map((item) => (
+                    <label
+                      key={item.id}
+                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-background cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={(newStep.triggerItemIds || []).includes(item.id)}
+                        onChange={() => {
+                          const currentIds = newStep.triggerItemIds || [];
+                          const newIds = currentIds.includes(item.id)
+                            ? currentIds.filter(id => id !== item.id)
+                            : [...currentIds, item.id];
+                          setNewStep({ ...newStep, triggerItemIds: newIds });
+                        }}
+                        className="w-4 h-4 rounded border-border"
+                      />
+                      <span className="text-sm text-foreground">{item.name}</span>
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {item.category}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                {(newStep.triggerItemIds || []).length > 0 && (
+                  <p className="text-xs text-brand-pink">
+                    {(newStep.triggerItemIds || []).length} item(s) selecionado(s)
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-2">
             <button
               onClick={() => setShowAddForm(false)}
@@ -228,31 +393,35 @@ export const CheckoutStepsManager = ({
               </div>
 
               {!isBuiltInStep(step.id) && (
-                <div className="grid grid-cols-2 gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editingStep.multiSelect}
-                      onChange={(e) =>
-                        setEditingStep({ ...editingStep, multiSelect: e.target.checked })
-                      }
-                      className="w-5 h-5 rounded border-border"
-                    />
-                    <span className="text-sm text-foreground">Múltipla escolha</span>
-                  </label>
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStep.multiSelect}
+                        onChange={(e) =>
+                          setEditingStep({ ...editingStep, multiSelect: e.target.checked })
+                        }
+                        className="w-5 h-5 rounded border-border"
+                      />
+                      <span className="text-sm text-foreground">Múltipla escolha</span>
+                    </label>
 
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editingStep.showForTable}
-                      onChange={(e) =>
-                        setEditingStep({ ...editingStep, showForTable: e.target.checked })
-                      }
-                      className="w-5 h-5 rounded border-border"
-                    />
-                    <span className="text-sm text-foreground">Mostrar para mesa</span>
-                  </label>
-                </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStep.showForTable}
+                        onChange={(e) =>
+                          setEditingStep({ ...editingStep, showForTable: e.target.checked })
+                        }
+                        className="w-5 h-5 rounded border-border"
+                      />
+                      <span className="text-sm text-foreground">Mostrar para mesa</span>
+                    </label>
+                  </div>
+
+                  {renderItemSelector(step, true)}
+                </>
               )}
 
               <div className="flex gap-2">
@@ -273,68 +442,76 @@ export const CheckoutStepsManager = ({
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col gap-1">
-                <button
-                  onClick={() => moveStep(index, "up")}
-                  disabled={index === 0}
-                  className="p-1 rounded hover:bg-muted disabled:opacity-30"
-                >
-                  <ChevronUp className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => moveStep(index, "down")}
-                  disabled={index === steps.length - 1}
-                  className="p-1 rounded hover:bg-muted disabled:opacity-30"
-                >
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-foreground">{step.title}</h3>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="px-2 py-0.5 rounded bg-muted">
-                    {STEP_TYPE_LABELS[step.type] || step.type}
-                  </span>
-                  {isDataStep(step.id) && (
-                    <span className="text-brand-pink">
-                      (usa dados do cardápio)
-                    </span>
-                  )}
-                  {isBuiltInStep(step.id) && (
-                    <span className="text-muted-foreground">(obrigatório)</span>
-                  )}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-1">
+                  <button
+                    onClick={() => moveStep(index, "up")}
+                    disabled={index === 0}
+                    className="p-1 rounded hover:bg-muted disabled:opacity-30"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => moveStep(index, "down")}
+                    disabled={index === steps.length - 1}
+                    className="p-1 rounded hover:bg-muted disabled:opacity-30"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
                 </div>
-              </div>
 
-              <button
-                onClick={() => toggleEnabled(step)}
-                className={cn(
-                  "p-2 rounded-lg transition-colors",
-                  step.enabled
-                    ? "bg-muted text-foreground hover:bg-muted/80"
-                    : "bg-muted text-muted-foreground"
-                )}
-              >
-                {step.enabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-              </button>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-foreground">{step.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span className="px-2 py-0.5 rounded bg-muted">
+                      {STEP_TYPE_LABELS[step.type] || step.type}
+                    </span>
+                    {isDataStep(step.id) && (
+                      <span className="text-brand-pink">
+                        (usa dados do cardápio)
+                      </span>
+                    )}
+                    {isBuiltInStep(step.id) && (
+                      <span className="text-muted-foreground">(obrigatório)</span>
+                    )}
+                    {(step.showCondition || "always") === "specific_items" && (
+                      <span className="flex items-center gap-1 text-brand-pink">
+                        <Filter className="w-3 h-3" />
+                        {(step.triggerItemIds || []).length} item(s)
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-              <button
-                onClick={() => setEditingStep(step)}
-                className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
-
-              {!isBuiltInStep(step.id) && (
                 <button
-                  onClick={() => handleDeleteStep(step.id)}
-                  className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20"
+                  onClick={() => toggleEnabled(step)}
+                  className={cn(
+                    "p-2 rounded-lg transition-colors",
+                    step.enabled
+                      ? "bg-muted text-foreground hover:bg-muted/80"
+                      : "bg-muted text-muted-foreground"
+                  )}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  {step.enabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                 </button>
-              )}
+
+                <button
+                  onClick={() => setEditingStep(step)}
+                  className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+
+                {!isBuiltInStep(step.id) && (
+                  <button
+                    onClick={() => handleDeleteStep(step.id)}
+                    className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
