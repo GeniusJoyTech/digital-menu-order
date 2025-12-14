@@ -135,10 +135,10 @@ const Admin = () => {
         <div className="flex gap-2 overflow-x-auto pb-2">
           {[
             { id: "items", label: "Itens do Cardápio" },
-            { id: "stock", label: "Estoque" },
             { id: "extras", label: "Turbinar Shake" },
             { id: "drinks", label: "Água/Refrigerante" },
             { id: "acai", label: "Turbinar Açaí" },
+            { id: "stock", label: "Estoque" },
           ].map((tab) => (
             <button
               key={tab.id}
