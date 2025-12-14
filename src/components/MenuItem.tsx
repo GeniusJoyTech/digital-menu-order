@@ -13,7 +13,10 @@ const MenuItem = ({ item, onAddToCart, bgColor }: MenuItemProps) => {
   const [selectedSize, setSelectedSize] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
 
+  const isOutOfStock = item.stock === 0;
+
   const handleAdd = () => {
+    if (isOutOfStock) return;
     setIsAdding(true);
     onAddToCart(
       item,
@@ -37,20 +40,31 @@ const MenuItem = ({ item, onAddToCart, bgColor }: MenuItemProps) => {
   return (
     <div 
       className={cn(
-        "group p-2 rounded-xl transition-all duration-300 hover:scale-[1.02] animate-fade-in",
-        getBgClass()
+        "group p-2 rounded-xl transition-all duration-300 animate-fade-in",
+        getBgClass(),
+        isOutOfStock ? "opacity-60" : "hover:scale-[1.02]"
       )}
     >
       <div className="flex items-center gap-2">
         {/* Circular Image */}
         <div className="relative flex-shrink-0">
-          <div className="w-16 h-16 rounded-full overflow-hidden border-3 border-card shadow-md">
+          <div className={cn(
+            "w-16 h-16 rounded-full overflow-hidden border-3 border-card shadow-md",
+            isOutOfStock && "grayscale"
+          )}>
             <img
               src={item.image}
               alt={item.name}
               className="w-full h-full object-cover"
             />
           </div>
+          {isOutOfStock && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="bg-destructive text-destructive-foreground text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+                ESGOTADO
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -67,12 +81,14 @@ const MenuItem = ({ item, onAddToCart, bgColor }: MenuItemProps) => {
             {item.prices.map((price, index) => (
               <button
                 key={price.size}
-                onClick={() => setSelectedSize(index)}
+                onClick={() => !isOutOfStock && setSelectedSize(index)}
+                disabled={isOutOfStock}
                 className={cn(
                   "transition-all duration-200",
                   selectedSize === index
                     ? "text-brand-pink font-bold"
-                    : "text-foreground"
+                    : "text-foreground",
+                  isOutOfStock && "cursor-not-allowed"
                 )}
               >
                 <span className="font-semibold">{price.size}</span>{" "}
@@ -93,9 +109,12 @@ const MenuItem = ({ item, onAddToCart, bgColor }: MenuItemProps) => {
         {/* Add Button */}
         <button
           onClick={handleAdd}
+          disabled={isOutOfStock}
           className={cn(
             "flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full transition-all duration-300",
-            "bg-brand-pink text-primary-foreground hover:opacity-90",
+            isOutOfStock 
+              ? "bg-muted text-muted-foreground cursor-not-allowed" 
+              : "bg-brand-pink text-primary-foreground hover:opacity-90",
             isAdding && "scale-90"
           )}
         >

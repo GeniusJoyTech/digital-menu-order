@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMenu } from "@/contexts/MenuContext";
 import { Navigate } from "react-router-dom";
-import { LogOut, Plus, Trash2, Edit2, Save, X, RotateCcw, Upload, Image } from "lucide-react";
+import { LogOut, Plus, Trash2, Edit2, Save, X, RotateCcw, Upload, Image, Package, Minus } from "lucide-react";
 import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -11,7 +11,7 @@ const Admin = () => {
   const { isAuthenticated, logout } = useAuth();
   const { config, updateMenuItem, addMenuItem, deleteMenuItem, updateExtra, addExtra, deleteExtra, updateDrinkOption, addDrinkOption, deleteDrinkOption, updateAcaiTurbine, resetToDefault } = useMenu();
   
-  const [activeTab, setActiveTab] = useState<"items" | "extras" | "drinks" | "acai">("items");
+  const [activeTab, setActiveTab] = useState<"items" | "extras" | "drinks" | "acai" | "stock">("items");
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [editingExtra, setEditingExtra] = useState<{ id: string; name: string; price: number } | null>(null);
   const [editingDrink, setEditingDrink] = useState<{ id: string; name: string; price: number } | null>(null);
@@ -136,6 +136,7 @@ const Admin = () => {
         <div className="flex gap-2 overflow-x-auto pb-2">
           {[
             { id: "items", label: "Itens do Cardápio" },
+            { id: "stock", label: "Estoque" },
             { id: "extras", label: "Turbinar Shake" },
             { id: "drinks", label: "Água/Refrigerante" },
             { id: "acai", label: "Turbinar Açaí" },
@@ -179,7 +180,10 @@ const Admin = () => {
                   .map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border"
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-xl bg-card border border-border",
+                        item.stock === 0 && "opacity-50"
+                      )}
                     >
                       <img
                         src={item.image}
@@ -187,9 +191,15 @@ const Admin = () => {
                         className="w-12 h-12 rounded-full object-cover"
                       />
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-foreground text-sm">{item.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-foreground text-sm">{item.name}</h3>
+                          {item.stock === 0 && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">Esgotado</span>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground truncate">
                           {item.prices.map((p) => `${p.size} R$${p.price.toFixed(2)}`).join(" • ")}
+                          {item.stock !== undefined && item.stock > 0 && ` • Estoque: ${item.stock}`}
                         </p>
                       </div>
                       <div className="flex gap-2">
@@ -296,6 +306,83 @@ const Admin = () => {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === "stock" && (
+          <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-muted/50 border border-border">
+              <div className="flex items-center gap-2 mb-2">
+                <Package className="w-5 h-5 text-brand-pink" />
+                <h3 className="font-bold text-foreground">Controle de Estoque</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Ajuste a quantidade em estoque de cada produto. Itens com estoque 0 ficam marcados como "Esgotado". 
+                Deixe vazio para estoque ilimitado.
+              </p>
+            </div>
+
+            {config.categories.map((category) => (
+              <div key={category.id} className="space-y-2">
+                <h2 className="font-display text-lg text-brand-pink">{category.name}</h2>
+                {config.menuItems
+                  .filter((item) => item.category === category.id)
+                  .map((item) => (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-xl bg-card border border-border",
+                        item.stock === 0 && "border-destructive/50 bg-destructive/5"
+                      )}
+                    >
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-foreground text-sm">{item.name}</h3>
+                        {item.stock === 0 && (
+                          <span className="text-xs text-destructive font-medium">Esgotado</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const currentStock = item.stock ?? 0;
+                            if (currentStock > 0) {
+                              updateMenuItem({ ...item, stock: currentStock - 1 });
+                            }
+                          }}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <input
+                          type="number"
+                          value={item.stock ?? ""}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? undefined : parseInt(e.target.value) || 0;
+                            updateMenuItem({ ...item, stock: value });
+                          }}
+                          placeholder="∞"
+                          className="w-16 p-2 text-center rounded-lg border border-border bg-background text-foreground font-bold"
+                          min="0"
+                        />
+                        <button
+                          onClick={() => {
+                            const currentStock = item.stock ?? 0;
+                            updateMenuItem({ ...item, stock: currentStock + 1 });
+                          }}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
               </div>
             ))}
           </div>
@@ -486,6 +573,21 @@ const ItemFormModal = ({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-foreground">Estoque</label>
+            <input
+              type="number"
+              value={formData.stock ?? ""}
+              onChange={(e) => setFormData({ ...formData, stock: e.target.value === "" ? undefined : parseInt(e.target.value) || 0 })}
+              placeholder="Deixe vazio para ilimitado"
+              className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+              min="0"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Deixe vazio para estoque ilimitado. Zero = Esgotado.
+            </p>
           </div>
 
           <div>
