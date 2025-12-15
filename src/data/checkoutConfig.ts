@@ -34,9 +34,9 @@ export interface CheckoutStep {
   options: CheckoutStepOption[];
   showForTable: boolean; // Whether to show this step for table orders
   skipForPickup?: boolean; // Skip for pickup orders (only show for delivery)
-  showCondition: "always" | "specific_items" | "specific_categories"; // When to show this step
-  triggerItemIds?: string[]; // Item IDs that trigger this step (when showCondition is "specific_items")
-  triggerCategoryIds?: string[]; // Category IDs that trigger this step (when showCondition is "specific_categories")
+  showCondition: "always" | "specific_items" | "specific_categories" | "items_and_categories"; // When to show this step
+  triggerItemIds?: string[]; // Item IDs that trigger this step (when showCondition includes items)
+  triggerCategoryIds?: string[]; // Category IDs that trigger this step (when showCondition includes categories)
   pricingRule?: PricingRule; // Optional pricing rules for multi-select steps
   maxSelectionsEnabled?: boolean; // Whether to limit the number of selections
   maxSelections?: number; // Maximum number of selections allowed (when maxSelectionsEnabled is true)

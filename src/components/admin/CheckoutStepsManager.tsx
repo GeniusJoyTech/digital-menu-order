@@ -355,7 +355,7 @@ export const CheckoutStepsManager = ({
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
-            Itens específicos
+            Itens
           </button>
           <button
             onClick={() => {
@@ -371,9 +371,23 @@ export const CheckoutStepsManager = ({
           >
             Categorias
           </button>
+          <button
+            onClick={() => {
+              const updated = { ...currentStep, showCondition: "items_and_categories" as const };
+              isEditing ? setEditingStep(updated) : updateLocalStep(updated);
+            }}
+            className={cn(
+              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors min-w-[80px]",
+              showCondition === "items_and_categories"
+                ? "bg-brand-pink text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            )}
+          >
+            Itens + Categorias
+          </button>
         </div>
 
-        {showCondition === "specific_items" && (
+        {(showCondition === "specific_items" || showCondition === "items_and_categories") && (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
               Selecione os itens do cardápio que irão mostrar esta etapa:
@@ -405,7 +419,7 @@ export const CheckoutStepsManager = ({
           </div>
         )}
 
-        {showCondition === "specific_categories" && (
+        {(showCondition === "specific_categories" || showCondition === "items_and_categories") && (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
               Selecione as categorias que irão mostrar esta etapa:
@@ -469,7 +483,7 @@ export const CheckoutStepsManager = ({
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
-            Itens específicos
+            Itens
           </button>
           <button
             onClick={() => setNewStep({ ...newStep, showCondition: "specific_categories", triggerItemIds: [] })}
@@ -482,9 +496,20 @@ export const CheckoutStepsManager = ({
           >
             Categorias
           </button>
+          <button
+            onClick={() => setNewStep({ ...newStep, showCondition: "items_and_categories" })}
+            className={cn(
+              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors min-w-[80px]",
+              showCondition === "items_and_categories"
+                ? "bg-brand-pink text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            )}
+          >
+            Itens + Categorias
+          </button>
         </div>
 
-        {showCondition === "specific_items" && (
+        {(showCondition === "specific_items" || showCondition === "items_and_categories") && (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
               Selecione os itens do cardápio que irão mostrar esta etapa:
@@ -522,7 +547,7 @@ export const CheckoutStepsManager = ({
           </div>
         )}
 
-        {showCondition === "specific_categories" && (
+        {(showCondition === "specific_categories" || showCondition === "items_and_categories") && (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
               Selecione as categorias que irão mostrar esta etapa:
@@ -571,6 +596,11 @@ export const CheckoutStepsManager = ({
     }
     if (condition === "specific_categories") {
       return `${(step.triggerCategoryIds || []).length} categoria(s)`;
+    }
+    if (condition === "items_and_categories") {
+      const items = (step.triggerItemIds || []).length;
+      const cats = (step.triggerCategoryIds || []).length;
+      return `${items} item(s), ${cats} cat(s)`;
     }
     return null;
   };
