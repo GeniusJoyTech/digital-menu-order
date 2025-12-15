@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { ShoppingBag, Plus, Minus, Trash2, Send, X } from "lucide-react";
-import { CartItem, extras } from "@/data/menuData";
+import { CartItem } from "@/data/menuData";
+import { useMenu } from "@/contexts/MenuContext";
 import { cn } from "@/lib/utils";
 import CheckoutForm, { CheckoutData } from "./CheckoutForm";
 import { saveOrder, Order } from "@/data/ordersConfig";
@@ -13,15 +14,10 @@ interface CartProps {
   onClearCart: () => void;
 }
 
-const drinkPrices: Record<string, { name: string; price: number }> = {
-  agua: { name: "Água", price: 5 },
-  "coca-lata": { name: "Coca-Cola Lata", price: 7 },
-  "guarana-lata": { name: "Guaraná Lata", price: 7 },
-};
-
 const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
+  const { config } = useMenu();
   const { mesa } = useParams();
   const isTable = mesa?.startsWith("mesa-");
   const tableNumber = mesa?.replace("mesa-", "") || null;
@@ -35,14 +31,34 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
   const handleCheckoutSubmit = (data: CheckoutData) => {
     const phoneNumber = "5515988240374";
     
-    // Calculate extras total
-    const turbinarTotal = data.turbinarItems.reduce((acc, itemId) => {
-      const extra = extras.find((e) => e.id === itemId);
-      return acc + (extra?.price || 0);
-    }, 0);
-    
-    const drinkTotal = data.extraDrink ? (drinkPrices[data.extraDrink]?.price || 0) : 0;
-    const finalTotal = totalPrice + turbinarTotal + drinkTotal;
+    // Calculate extras total from stepValues
+    let extrasTotal = 0;
+    const extrasSelected: { name: string; price: number }[] = [];
+    let drinkSelected: { name: string; price: number } | null = null;
+
+    // Process step values to get extras and drinks
+    Object.entries(data.stepValues).forEach(([stepId, selectedIds]) => {
+      selectedIds.forEach(optionId => {
+        // Check in extras
+        const extra = config.extras.find(e => e.id === optionId);
+        if (extra) {
+          extrasTotal += extra.price;
+          extrasSelected.push({ name: extra.name, price: extra.price });
+          return;
+        }
+        
+        // Check in drinks (skip "none")
+        if (optionId !== "none") {
+          const drink = config.drinkOptions.find(d => d.id === optionId);
+          if (drink) {
+            extrasTotal += drink.price;
+            drinkSelected = { name: drink.name, price: drink.price };
+          }
+        }
+      });
+    });
+
+    const finalTotal = totalPrice + extrasTotal;
     
     let message = "";
     
@@ -70,19 +86,16 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
       message += `   R$ ${(item.selectedPrice * item.quantity).toFixed(2).replace(".", ",")}\n\n`;
     });
     
-    if (data.turbinarItems.length > 0) {
-      message += `\n⚡ *TURBINAR:*\n`;
-      data.turbinarItems.forEach((itemId) => {
-        const extra = extras.find((e) => e.id === itemId);
-        if (extra) {
-          message += `• ${extra.name} - R$ ${extra.price.toFixed(2).replace(".", ",")}\n`;
-        }
+    if (extrasSelected.length > 0) {
+      message += `\n⚡ *EXTRAS:*\n`;
+      extrasSelected.forEach((extra) => {
+        message += `• ${extra.name} - R$ ${extra.price.toFixed(2).replace(".", ",")}\n`;
       });
     }
     
-    if (data.extraDrink && drinkPrices[data.extraDrink]) {
-      message += `\n🥤 *BEBIDA EXTRA:*\n`;
-      message += `• ${drinkPrices[data.extraDrink].name} - R$ ${drinkPrices[data.extraDrink].price.toFixed(2).replace(".", ",")}\n`;
+    if (drinkSelected) {
+      message += `\n🥤 *BEBIDA:*\n`;
+      message += `• ${drinkSelected.name} - R$ ${drinkSelected.price.toFixed(2).replace(".", ",")}\n`;
     }
     
     message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
@@ -111,13 +124,8 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
         quantity: item.quantity,
         price: item.selectedPrice,
       })),
-      extras: data.turbinarItems.map(itemId => {
-        const extra = extras.find(e => e.id === itemId);
-        return { name: extra?.name || "", price: extra?.price || 0 };
-      }).filter(e => e.name),
-      drink: data.extraDrink && drinkPrices[data.extraDrink] 
-        ? { name: drinkPrices[data.extraDrink].name, price: drinkPrices[data.extraDrink].price }
-        : null,
+      extras: extrasSelected,
+      drink: drinkSelected,
       total: finalTotal,
       status: "pending",
     };
@@ -296,6 +304,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
         <CheckoutForm
           isTable={!!isTable}
           tableNumber={tableNumber || ""}
+          cartItems={items}
           onSubmit={handleCheckoutSubmit}
           onClose={() => setShowCheckout(false)}
         />
