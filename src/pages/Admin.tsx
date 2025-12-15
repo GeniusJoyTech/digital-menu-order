@@ -418,6 +418,83 @@ const Admin = () => {
               ))}
             </div>
 
+            {/* Custom Steps Options Stock */}
+            {checkoutConfig.steps
+              .filter(step => step.type === "custom_select" && step.options.length > 0)
+              .map((step) => (
+                <div key={step.id} className="space-y-4">
+                  <h2 className="font-display text-xl text-brand-pink">{step.title}</h2>
+                  {step.options.map((option) => (
+                    <div
+                      key={option.id}
+                      className={cn(
+                        "flex items-center gap-3 p-4 rounded-xl bg-card border border-border",
+                        option.stock === 0 && "opacity-50"
+                      )}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-foreground text-sm">{option.name}</h3>
+                          {option.stock === 0 && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">Esgotado</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {option.stock === undefined ? "Estoque ilimitado" : `Estoque: ${option.stock}`}
+                          {option.price > 0 && ` • R$ ${option.price.toFixed(2).replace(".", ",")}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const updatedOptions = step.options.map(o =>
+                              o.id === option.id ? { ...o, stock: undefined } : o
+                            );
+                            updateStep({ ...step, options: updatedOptions });
+                          }}
+                          className={cn(
+                            "px-2 py-1 rounded text-xs",
+                            option.stock === undefined 
+                              ? "bg-brand-pink text-primary-foreground" 
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          )}
+                        >
+                          ∞
+                        </button>
+                        <button
+                          onClick={() => {
+                            const currentStock = option.stock ?? 0;
+                            if (currentStock > 0) {
+                              const updatedOptions = step.options.map(o =>
+                                o.id === option.id ? { ...o, stock: currentStock - 1 } : o
+                              );
+                              updateStep({ ...step, options: updatedOptions });
+                            }
+                          }}
+                          className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <span className="w-12 text-center font-bold text-foreground">
+                          {option.stock ?? "∞"}
+                        </span>
+                        <button
+                          onClick={() => {
+                            const currentStock = option.stock ?? 0;
+                            const updatedOptions = step.options.map(o =>
+                              o.id === option.id ? { ...o, stock: currentStock + 1 } : o
+                            );
+                            updateStep({ ...step, options: updatedOptions });
+                          }}
+                          className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
           </div>
         )}
 
