@@ -615,6 +615,69 @@ const Admin = () => {
                   className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
                 />
               </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground">Descrição</label>
+                <input
+                  type="text"
+                  value={design.storeDescription || ""}
+                  onChange={(e) => updateDesign({ storeDescription: e.target.value })}
+                  placeholder="Ex: Personalizamos o copo com o seu nome!"
+                  className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+                />
+              </div>
+
+              {/* Social Links */}
+              <div className="border-t border-border pt-4 mt-4">
+                <h4 className="text-sm font-medium text-foreground mb-3">Redes Sociais</h4>
+                <div className="space-y-3">
+                  {(design.socialLinks || []).map((social, index) => (
+                    <div key={index} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={social.platform}
+                        onChange={(e) => {
+                          const newLinks = [...(design.socialLinks || [])];
+                          newLinks[index] = { ...social, platform: e.target.value };
+                          updateDesign({ socialLinks: newLinks });
+                        }}
+                        placeholder="Nome (ex: Instagram)"
+                        className="flex-1 p-3 rounded-xl border border-border bg-background text-foreground"
+                      />
+                      <input
+                        type="text"
+                        value={social.url}
+                        onChange={(e) => {
+                          const newLinks = [...(design.socialLinks || [])];
+                          newLinks[index] = { ...social, url: e.target.value };
+                          updateDesign({ socialLinks: newLinks });
+                        }}
+                        placeholder="Link (ex: https://instagram.com/...)"
+                        className="flex-[2] p-3 rounded-xl border border-border bg-background text-foreground"
+                      />
+                      <button
+                        onClick={() => {
+                          const newLinks = (design.socialLinks || []).filter((_, i) => i !== index);
+                          updateDesign({ socialLinks: newLinks });
+                        }}
+                        className="p-3 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const newLinks = [...(design.socialLinks || []), { platform: "", url: "", icon: "" }];
+                      updateDesign({ socialLinks: newLinks });
+                    }}
+                    className="w-full py-3 rounded-xl bg-muted text-foreground font-medium hover:bg-muted/80 flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Adicionar Rede Social
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Colors Section */}
