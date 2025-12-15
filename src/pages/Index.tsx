@@ -5,9 +5,11 @@ import CategorySection from "@/components/CategorySection";
 import Cart from "@/components/Cart";
 import { MenuItem as MenuItemType, CartItem } from "@/data/menuData";
 import { useMenu } from "@/contexts/MenuContext";
+import { useDesign } from "@/contexts/DesignContext";
 
 const Index = () => {
   const { config } = useMenu();
+  const { design } = useDesign();
   const [activeCategory, setActiveCategory] = useState(config.categories[0]?.id || "tradicionais");
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -83,14 +85,26 @@ const Index = () => {
         {/* Title Section */}
         <div className="text-center mb-8">
           <h1 className="font-display text-4xl md:text-5xl text-foreground mb-2">
-            Milk Shakes
+            {design.storeName}
           </h1>
           <p className="text-muted-foreground text-sm">
             Aceitamos cartões de crédito e de débito
           </p>
-          <p className="text-muted-foreground text-sm">
-            Instagram: @milkshake.yes_br
-          </p>
+          {design.socialLinks && design.socialLinks.length > 0 && (
+            <div className="flex items-center justify-center gap-3 mt-1">
+              {design.socialLinks.map((social, index) => (
+                <a
+                  key={index}
+                  href={social.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground text-sm hover:text-foreground underline"
+                >
+                  {social.platform}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Categories */}
