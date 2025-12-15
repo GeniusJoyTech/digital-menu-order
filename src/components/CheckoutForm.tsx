@@ -1,11 +1,15 @@
-import { useState } from "react";
-import { X, Plus, MapPin, Store, User, Coffee, Phone } from "lucide-react";
+import { useState, useMemo } from "react";
+import { X, Plus, MapPin, Store, User, Phone } from "lucide-react";
 import { useMenu } from "@/contexts/MenuContext";
+import { useCheckout } from "@/contexts/CheckoutContext";
+import { CartItem } from "@/data/menuData";
+import { CheckoutStep } from "@/data/checkoutConfig";
 import { cn } from "@/lib/utils";
 
 interface CheckoutFormProps {
   isTable: boolean;
   tableNumber: string;
+  cartItems: CartItem[];
   onSubmit: (data: CheckoutData) => void;
   onClose: () => void;
 }
@@ -15,68 +19,134 @@ export interface CheckoutData {
   address?: string;
   recipientName: string;
   customerPhone: string;
-  turbinarItems: string[];
-  extraDrink: string | null;
+  stepValues: Record<string, string[]>; // step.id -> selected option ids
 }
 
-const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormProps) => {
-  const { config } = useMenu();
+const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: CheckoutFormProps) => {
+  const { config: menuConfig } = useMenu();
+  const { config: checkoutConfig } = useCheckout();
   
-  const turbinarOptions = config.extras;
-  const drinkOptions = config.drinkOptions;
-  const [step, setStep] = useState(1);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [deliveryType, setDeliveryType] = useState<"delivery" | "pickup">("pickup");
   const [address, setAddress] = useState("");
   const [recipientName, setRecipientName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [turbinarItems, setTurbinarItems] = useState<string[]>([]);
-  const [extraDrink, setExtraDrink] = useState<string | null>("none");
+  const [stepValues, setStepValues] = useState<Record<string, string[]>>({});
 
-  const totalSteps = isTable ? 3 : 4;
+  // Get cart item IDs and category IDs for conditional step visibility
+  const cartItemIds = useMemo(() => cartItems.map(item => item.id), [cartItems]);
+  const cartCategoryIds = useMemo(() => {
+    const categoryIds = new Set<string>();
+    cartItems.forEach(item => {
+      if (item.category) {
+        categoryIds.add(item.category);
+      }
+    });
+    return Array.from(categoryIds);
+  }, [cartItems]);
 
-  const handleTurbinarToggle = (itemId: string) => {
-    setTurbinarItems((prev) =>
-      prev.includes(itemId)
-        ? prev.filter((id) => id !== itemId)
-        : [...prev, itemId]
-    );
+  // Filter steps based on enabled status, table/delivery context, and conditional visibility
+  const visibleSteps = useMemo(() => {
+    return checkoutConfig.steps.filter(step => {
+      if (!step.enabled) return false;
+      if (isTable && !step.showForTable) return false;
+      if (!isTable && step.skipForPickup && deliveryType === "pickup") return false;
+      
+      // Check conditional visibility
+      if (step.showCondition === "specific_items" && step.triggerItemIds?.length) {
+        const hasMatchingItem = step.triggerItemIds.some(id => cartItemIds.includes(id));
+        if (!hasMatchingItem) return false;
+      }
+      
+      if (step.showCondition === "specific_categories" && step.triggerCategoryIds?.length) {
+        const hasMatchingCategory = step.triggerCategoryIds.some(id => cartCategoryIds.includes(id));
+        if (!hasMatchingCategory) return false;
+      }
+      
+      return true;
+    });
+  }, [checkoutConfig.steps, isTable, deliveryType, cartItemIds, cartCategoryIds]);
+
+  const totalSteps = visibleSteps.length;
+  const currentStep = visibleSteps[currentStepIndex];
+
+  const handleStepValueChange = (stepId: string, optionId: string, multiSelect: boolean) => {
+    setStepValues(prev => {
+      if (multiSelect) {
+        const current = prev[stepId] || [];
+        return {
+          ...prev,
+          [stepId]: current.includes(optionId)
+            ? current.filter(id => id !== optionId)
+            : [...current, optionId]
+        };
+      } else {
+        return { ...prev, [stepId]: [optionId] };
+      }
+    });
   };
 
   const handleNext = () => {
-    if (step < totalSteps) {
-      setStep(step + 1);
+    if (currentStepIndex < totalSteps - 1) {
+      setCurrentStepIndex(currentStepIndex + 1);
     } else {
       onSubmit({
         deliveryType: isTable ? "table" : deliveryType,
         address: deliveryType === "delivery" ? address : undefined,
         recipientName,
         customerPhone,
-        turbinarItems,
-        extraDrink: extraDrink === "none" ? null : extraDrink,
+        stepValues,
       });
     }
   };
 
+  const handleBack = () => {
+    if (currentStepIndex > 0) {
+      setCurrentStepIndex(currentStepIndex - 1);
+    }
+  };
+
   const canProceed = () => {
-    if (!isTable && step === 1) {
+    if (!currentStep) return false;
+    
+    if (currentStep.type === "delivery") {
       if (deliveryType === "delivery" && address.trim().length < 5) return false;
     }
-    if ((!isTable && step === 2) || (isTable && step === 1)) {
+    
+    if (currentStep.type === "name") {
       if (recipientName.trim().length < 2) return false;
       if (customerPhone.trim().length < 10) return false;
     }
+    
+    if (currentStep.required) {
+      if (currentStep.type === "extras" || currentStep.type === "drinks" || currentStep.type === "custom_select") {
+        const values = stepValues[currentStep.id] || [];
+        if (values.length === 0 || (values.length === 1 && values[0] === "none")) return false;
+      }
+    }
+    
     return true;
   };
 
+  const getStepOptions = (step: CheckoutStep) => {
+    if (step.type === "extras") {
+      return menuConfig.extras.map(e => ({ ...e, stock: e.stock }));
+    }
+    if (step.type === "drinks") {
+      return menuConfig.drinkOptions;
+    }
+    return step.options;
+  };
+
   const renderStep = () => {
-    // For table orders: 1=name, 2=turbinar, 3=drink
-    // For delivery/pickup: 1=address/type, 2=name, 3=turbinar, 4=drink
-    
-    if (!isTable && step === 1) {
+    if (!currentStep) return null;
+
+    // Delivery step
+    if (currentStep.type === "delivery") {
       return (
         <div className="space-y-4">
           <h3 className="font-display text-xl text-brand-pink text-center">
-            Como deseja receber?
+            {currentStep.title}
           </h3>
           
           <div className="grid grid-cols-2 gap-3">
@@ -125,15 +195,12 @@ const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormP
       );
     }
 
-    const nameStep = isTable ? 1 : 2;
-    const turbinarStep = isTable ? 2 : 3;
-    const drinkStep = isTable ? 3 : 4;
-
-    if (step === nameStep) {
+    // Name step
+    if (currentStep.type === "name") {
       return (
         <div className="space-y-4">
           <h3 className="font-display text-xl text-brand-pink text-center">
-            Quem vai receber?
+            {currentStep.title}
           </h3>
           
           <div className="space-y-2">
@@ -170,46 +237,58 @@ const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormP
       );
     }
 
-    if (step === turbinarStep) {
+    // Selection steps (extras, drinks, custom_select)
+    if (currentStep.type === "extras" || currentStep.type === "drinks" || currentStep.type === "custom_select") {
+      const options = getStepOptions(currentStep);
+      const selectedValues = stepValues[currentStep.id] || [];
+      
       return (
         <div className="space-y-4">
           <h3 className="font-display text-xl text-brand-pink text-center">
-            Quer turbinar seu Milk Shake?
+            {currentStep.title}
           </h3>
-          <p className="text-center text-sm text-muted-foreground">
-            Adicione extras especiais! (opcional)
-          </p>
+          {currentStep.subtitle && (
+            <p className="text-center text-sm text-muted-foreground">
+              {currentStep.subtitle}
+            </p>
+          )}
           
           <div className="grid grid-cols-1 gap-2 max-h-[40vh] overflow-y-auto">
-            {turbinarOptions.map((item) => {
-              const isOutOfStock = item.stock === 0;
+            {options.map((option) => {
+              const isOutOfStock = option.stock === 0 && option.id !== "none";
+              const isSelected = selectedValues.includes(option.id);
+              
               return (
                 <button
-                  key={item.id}
-                  onClick={() => !isOutOfStock && handleTurbinarToggle(item.id)}
+                  key={option.id}
+                  onClick={() => !isOutOfStock && handleStepValueChange(currentStep.id, option.id, currentStep.multiSelect)}
                   disabled={isOutOfStock}
                   className={cn(
                     "flex items-center justify-between p-3 rounded-xl border-2 transition-all",
                     isOutOfStock
                       ? "border-border bg-muted opacity-50 cursor-not-allowed"
-                      : turbinarItems.includes(item.id)
+                      : isSelected
                         ? "border-brand-pink bg-pastel-pink"
                         : "border-border bg-card hover:border-brand-pink/50"
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <Plus className={cn(
-                      "w-5 h-5 transition-transform",
-                      turbinarItems.includes(item.id) ? "rotate-45 text-brand-pink" : "text-muted-foreground"
-                    )} />
+                    {currentStep.multiSelect && (
+                      <Plus className={cn(
+                        "w-5 h-5 transition-transform",
+                        isSelected ? "rotate-45 text-brand-pink" : "text-muted-foreground"
+                      )} />
+                    )}
                     <span className={cn("font-medium text-foreground", isOutOfStock && "line-through")}>
-                      {item.name}
+                      {option.name}
                       {isOutOfStock && <span className="ml-2 text-xs text-destructive">(Esgotado)</span>}
                     </span>
                   </div>
-                  <span className="text-brand-pink font-bold">
-                    +R$ {item.price.toFixed(2).replace(".", ",")}
-                  </span>
+                  {option.price > 0 && (
+                    <span className="text-brand-pink font-bold">
+                      +R$ {option.price.toFixed(2).replace(".", ",")}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -218,50 +297,36 @@ const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormP
       );
     }
 
-    if (step === drinkStep) {
+    // Custom text step
+    if (currentStep.type === "custom_text") {
       return (
         <div className="space-y-4">
-          <h3 className="font-display text-xl text-brand-pink text-center flex items-center justify-center gap-2">
-            <Coffee className="w-5 h-5" />
-            Quer água ou refrigerante?
+          <h3 className="font-display text-xl text-brand-pink text-center">
+            {currentStep.title}
           </h3>
+          {currentStep.subtitle && (
+            <p className="text-center text-sm text-muted-foreground">
+              {currentStep.subtitle}
+            </p>
+          )}
           
-          <div className="grid grid-cols-1 gap-2">
-            {drinkOptions.map((drink) => {
-              const isOutOfStock = drink.stock === 0 && drink.id !== "none";
-              return (
-                <button
-                  key={drink.id}
-                  onClick={() => !isOutOfStock && setExtraDrink(drink.id)}
-                  disabled={isOutOfStock}
-                  className={cn(
-                    "flex items-center justify-between p-4 rounded-xl border-2 transition-all",
-                    isOutOfStock
-                      ? "border-border bg-muted opacity-50 cursor-not-allowed"
-                      : extraDrink === drink.id
-                        ? "border-brand-pink bg-pastel-pink"
-                        : "border-border bg-card hover:border-brand-pink/50"
-                  )}
-                >
-                  <span className={cn("font-medium text-foreground", isOutOfStock && "line-through")}>
-                    {drink.name}
-                    {isOutOfStock && <span className="ml-2 text-xs text-destructive">(Esgotado)</span>}
-                  </span>
-                  {drink.price > 0 && (
-                    <span className="text-brand-pink font-bold">
-                      +R$ {drink.price.toFixed(2).replace(".", ",")}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          <textarea
+            value={(stepValues[currentStep.id] || [])[0] || ""}
+            onChange={(e) => setStepValues(prev => ({ ...prev, [currentStep.id]: [e.target.value] }))}
+            placeholder="Digite aqui..."
+            className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-pink resize-none"
+            rows={3}
+          />
         </div>
       );
     }
 
     return null;
   };
+
+  if (totalSteps === 0) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center">
@@ -283,7 +348,7 @@ const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormP
               Finalizar Pedido
             </h2>
             <p className="text-sm text-muted-foreground">
-              Passo {step} de {totalSteps}
+              Passo {currentStepIndex + 1} de {totalSteps}
             </p>
           </div>
           <button
@@ -302,7 +367,7 @@ const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormP
                 key={i}
                 className={cn(
                   "flex-1 h-1.5 rounded-full transition-colors",
-                  i < step ? "bg-brand-pink" : "bg-muted"
+                  i <= currentStepIndex ? "bg-brand-pink" : "bg-muted"
                 )}
               />
             ))}
@@ -317,9 +382,9 @@ const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormP
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border bg-card">
           <div className="flex gap-3">
-            {step > 1 && (
+            {currentStepIndex > 0 && (
               <button
-                onClick={() => setStep(step - 1)}
+                onClick={handleBack}
                 className="flex-1 py-3 rounded-xl font-bold border-2 border-border text-foreground hover:bg-muted transition-colors"
               >
                 Voltar
@@ -335,7 +400,7 @@ const CheckoutForm = ({ isTable, tableNumber, onSubmit, onClose }: CheckoutFormP
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
-              {step === totalSteps ? "Confirmar" : "Próximo"}
+              {currentStepIndex === totalSteps - 1 ? "Confirmar" : "Próximo"}
             </button>
           </div>
         </div>
