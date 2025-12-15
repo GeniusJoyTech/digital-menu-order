@@ -87,9 +87,6 @@ const Index = () => {
           <h1 className="font-display text-4xl md:text-5xl text-foreground mb-2">
             {design.storeName}
           </h1>
-          <p className="text-muted-foreground text-sm">
-            Aceitamos cartões de crédito e de débito
-          </p>
           {design.socialLinks && design.socialLinks.length > 0 && (
             <div className="flex items-center justify-center gap-3 mt-1">
               {design.socialLinks.map((social, index) => (
@@ -128,10 +125,25 @@ const Index = () => {
 
         {/* Extras Section removed - managed via checkout steps */}
 
-        {/* Footer Info */}
-        <div className="text-center mt-8 text-sm text-muted-foreground">
-          <p>Peça também pelo iFood</p>
-        </div>
+        {/* Footer - Social Links */}
+        {design.socialLinks && design.socialLinks.length > 0 && (
+          <div className="text-center mt-8 pt-6 border-t border-border">
+            <p className="text-xs text-muted-foreground mb-2">Siga-nos nas redes sociais</p>
+            <div className="flex items-center justify-center gap-4">
+              {design.socialLinks.map((social, index) => (
+                <a
+                  key={index}
+                  href={social.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-foreground hover:text-brand-pink transition-colors underline"
+                >
+                  {social.platform}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
 
       <Cart
