@@ -40,9 +40,39 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
 
     // Process step values to get extras, drinks, and custom options
     Object.entries(data.stepValues).forEach(([stepId, selectedIds]) => {
-      // Find the step to check its type
+      // Find the step to check its type and pricing rules
       const step = checkoutConfig.steps.find(s => s.id === stepId);
       
+      if (!step) return;
+
+      // Handle custom_select with pricing rules
+      if (step.type === "custom_select" && step.pricingRule?.enabled) {
+        const rule = step.pricingRule;
+        const itemCount = selectedIds.length;
+        
+        // Get selected option names for the order
+        selectedIds.forEach(optionId => {
+          const customOption = step.options.find(o => o.id === optionId);
+          if (customOption) {
+            extrasSelected.push({ name: customOption.name, price: 0 }); // Price calculated separately
+          }
+        });
+
+        // Calculate price based on rule type
+        if (rule.ruleType === "per_item") {
+          extrasTotal += itemCount * rule.pricePerItem;
+        } else if (rule.ruleType === "per_item_after_limit") {
+          const chargeableItems = Math.max(0, itemCount - rule.freeItemsLimit);
+          extrasTotal += chargeableItems * rule.pricePerItem;
+        } else if (rule.ruleType === "flat_after_limit") {
+          if (itemCount > rule.freeItemsLimit) {
+            extrasTotal += rule.flatPrice;
+          }
+        }
+        return;
+      }
+      
+      // Regular processing for steps without custom pricing rules
       selectedIds.forEach(optionId => {
         // Check in extras
         const extra = config.extras.find(e => e.id === optionId);
@@ -62,7 +92,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
           }
         }
         
-        // Check in custom step options
+        // Check in custom step options (without pricing rules)
         if (step && step.type === "custom_select") {
           const customOption = step.options.find(o => o.id === optionId);
           if (customOption) {
