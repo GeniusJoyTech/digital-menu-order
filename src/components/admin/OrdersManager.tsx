@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Phone, MapPin, ShoppingBag, Trash2, Check, X, MessageCircle, Copy, ChevronLeft, ChevronRight, Calendar, Download } from "lucide-react";
+import { Phone, MapPin, ShoppingBag, Trash2, Check, X, MessageCircle, Copy, ChevronLeft, ChevronRight, Calendar, Download, ChefHat, Truck, PackageCheck } from "lucide-react";
 import { Order, loadOrders, updateOrderStatus, deleteOrder, deleteOldOrders } from "@/data/ordersConfig";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -308,6 +308,21 @@ export const OrdersManager = () => {
     window.open(`https://wa.me/${formattedPhone}`, "_blank");
   };
 
+  const sendStatusMessage = (order: Order, status: "kitchen" | "left" | "delivered") => {
+    const cleanPhone = order.customerPhone.replace(/\D/g, "");
+    const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+    
+    const messages = {
+      kitchen: `Olá ${order.customerName}! 👨‍🍳\n\nSeu pedido já está sendo preparado na cozinha!\n\nEm breve ficará pronto. Obrigado pela preferência! 🍹`,
+      left: `Olá ${order.customerName}! 🛵\n\nSeu pedido acabou de sair para entrega!\n\nEm breve chegará até você. Obrigado! 📦`,
+      delivered: `Olá ${order.customerName}! ✅\n\nSeu pedido foi entregue!\n\nEsperamos que goste! Obrigado pela preferência! 💜`
+    };
+
+    const message = encodeURIComponent(messages[status]);
+    window.open(`https://wa.me/${formattedPhone}?text=${message}`, "_blank");
+    toast.success("WhatsApp aberto com a mensagem!");
+  };
+
   const handleCopyOrder = (order: Order) => {
     const itemsText = order.items.map(item => 
       `${item.quantity}x ${item.name} (${item.size}) - R$ ${(item.price * item.quantity).toFixed(2).replace(".", ",")}`
@@ -566,6 +581,33 @@ ${drinkText}
               )}
             </div>
 
+            {/* Status Messages */}
+            {order.status === "confirmed" && (
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                <button
+                  onClick={() => sendStatusMessage(order, "kitchen")}
+                  className="flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 px-2 rounded-lg bg-orange-500/10 text-orange-600 text-xs font-medium hover:bg-orange-500/20 transition-colors"
+                >
+                  <ChefHat className="w-3 h-3" />
+                  Na cozinha
+                </button>
+                <button
+                  onClick={() => sendStatusMessage(order, "left")}
+                  className="flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 px-2 rounded-lg bg-blue-500/10 text-blue-600 text-xs font-medium hover:bg-blue-500/20 transition-colors"
+                >
+                  <Truck className="w-3 h-3" />
+                  Saiu
+                </button>
+                <button
+                  onClick={() => sendStatusMessage(order, "delivered")}
+                  className="flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 px-2 rounded-lg bg-green-500/10 text-green-600 text-xs font-medium hover:bg-green-500/20 transition-colors"
+                >
+                  <PackageCheck className="w-3 h-3" />
+                  Entregue
+                </button>
+              </div>
+            )}
+
             {/* Actions */}
             {order.status === "pending" && (
               <div className="flex gap-2 pt-2">
@@ -574,7 +616,7 @@ ${drinkText}
                   className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors"
                 >
                   <Check className="w-4 h-4" />
-                  Confirmar
+                  Concluído
                 </button>
                 <button
                   onClick={() => handleCancel(order.id)}
