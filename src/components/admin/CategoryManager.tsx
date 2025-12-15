@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Save, X, GripVertical } from "lucide-react";
+import { Plus, Trash2, Edit2, Save, X, GripVertical, Palette } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { MenuItem } from "@/data/menuData";
+import { isValidHex, normalizeHex } from "@/lib/colorUtils";
 
 interface Category {
   id: string;
@@ -25,10 +26,16 @@ const PRESET_COLORS = [
   { name: "Amarelo", value: "pastel-yellow" },
 ];
 
+const isCustomHexColor = (color: string) => {
+  return color.startsWith('#') || isValidHex(color);
+};
+
 export const CategoryManager = ({ categories, menuItems, onUpdate }: CategoryManagerProps) => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: "", color: "pastel-pink" });
+  const [customHexNew, setCustomHexNew] = useState("");
+  const [customHexEdit, setCustomHexEdit] = useState("");
 
   const getItemsInCategory = (categoryId: string) => {
     return menuItems.filter((item) => item.category === categoryId);
@@ -117,11 +124,14 @@ export const CategoryManager = ({ categories, menuItems, onUpdate }: CategoryMan
               {PRESET_COLORS.map((color) => (
                 <button
                   key={color.value}
-                  onClick={() => setNewCategory({ ...newCategory, color: color.value })}
+                  onClick={() => {
+                    setNewCategory({ ...newCategory, color: color.value });
+                    setCustomHexNew("");
+                  }}
                   className={cn(
                     "p-3 rounded-xl border-2 transition-all text-sm",
                     `bg-${color.value}`,
-                    newCategory.color === color.value
+                    newCategory.color === color.value && !isCustomHexColor(newCategory.color)
                       ? "border-brand-pink"
                       : "border-transparent"
                   )}
@@ -129,6 +139,35 @@ export const CategoryManager = ({ categories, menuItems, onUpdate }: CategoryMan
                   {color.name}
                 </button>
               ))}
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <Palette className="w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={customHexNew}
+                onChange={(e) => setCustomHexNew(e.target.value)}
+                placeholder="#FF5733"
+                className="flex-1 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+              />
+              <button
+                onClick={() => {
+                  if (isValidHex(customHexNew)) {
+                    setNewCategory({ ...newCategory, color: normalizeHex(customHexNew) });
+                    toast.success("Cor personalizada aplicada!");
+                  } else {
+                    toast.error("Formato hexadecimal inválido (ex: #FF5733)");
+                  }
+                }}
+                className="px-3 py-2 rounded-lg bg-brand-pink text-primary-foreground text-sm hover:opacity-90"
+              >
+                Aplicar
+              </button>
+              {isCustomHexColor(newCategory.color) && (
+                <div
+                  className="w-8 h-8 rounded-lg border-2 border-brand-pink"
+                  style={{ backgroundColor: newCategory.color }}
+                />
+              )}
             </div>
           </div>
           <div className="flex gap-2">
@@ -152,13 +191,16 @@ export const CategoryManager = ({ categories, menuItems, onUpdate }: CategoryMan
       {categories.map((category) => {
         const itemCount = getItemsInCategory(category.id).length;
         
+        const hasCustomColor = isCustomHexColor(category.color);
+        
         return (
           <div
             key={category.id}
             className={cn(
               "p-4 rounded-xl border border-border",
-              `bg-${category.color}`
+              !hasCustomColor && `bg-${category.color}`
             )}
+            style={hasCustomColor ? { backgroundColor: category.color } : undefined}
           >
             {editingCategory?.id === category.id ? (
               <div className="space-y-3">
@@ -174,13 +216,14 @@ export const CategoryManager = ({ categories, menuItems, onUpdate }: CategoryMan
                   {PRESET_COLORS.map((color) => (
                     <button
                       key={color.value}
-                      onClick={() =>
-                        setEditingCategory({ ...editingCategory, color: color.value })
-                      }
+                      onClick={() => {
+                        setEditingCategory({ ...editingCategory, color: color.value });
+                        setCustomHexEdit("");
+                      }}
                       className={cn(
                         "p-2 rounded-lg border-2 transition-all text-xs",
                         `bg-${color.value}`,
-                        editingCategory.color === color.value
+                        editingCategory.color === color.value && !isCustomHexColor(editingCategory.color)
                           ? "border-brand-pink"
                           : "border-transparent"
                       )}
@@ -188,6 +231,35 @@ export const CategoryManager = ({ categories, menuItems, onUpdate }: CategoryMan
                       {color.name}
                     </button>
                   ))}
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={customHexEdit}
+                    onChange={(e) => setCustomHexEdit(e.target.value)}
+                    placeholder="#FF5733"
+                    className="flex-1 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                  />
+                  <button
+                    onClick={() => {
+                      if (isValidHex(customHexEdit)) {
+                        setEditingCategory({ ...editingCategory, color: normalizeHex(customHexEdit) });
+                        toast.success("Cor personalizada aplicada!");
+                      } else {
+                        toast.error("Formato hexadecimal inválido (ex: #FF5733)");
+                      }
+                    }}
+                    className="px-3 py-2 rounded-lg bg-brand-pink text-primary-foreground text-sm hover:opacity-90"
+                  >
+                    Aplicar
+                  </button>
+                  {isCustomHexColor(editingCategory.color) && (
+                    <div
+                      className="w-6 h-6 rounded-lg border-2 border-brand-pink"
+                      style={{ backgroundColor: editingCategory.color }}
+                    />
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <button
