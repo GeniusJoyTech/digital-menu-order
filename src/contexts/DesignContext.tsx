@@ -88,6 +88,10 @@ export const DesignProvider = ({ children }: { children: ReactNode }) => {
     root.style.setProperty("--card", design.cardBackground);
     root.style.setProperty("--primary", design.accentColor);
 
+    // Apply fonts dynamically
+    root.style.setProperty("--font-display", `"${design.fontDisplay}", cursive`);
+    root.style.setProperty("--font-body", `"${design.fontBody}", sans-serif`);
+
     // Load all custom fonts
     design.customFonts.forEach(loadCustomFont);
   }, [design]);
