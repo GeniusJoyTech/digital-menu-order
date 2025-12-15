@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { Phone, MapPin, ShoppingBag, Trash2, Check, X, MessageCircle, Copy, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { Phone, MapPin, ShoppingBag, Trash2, Check, X, MessageCircle, Copy, ChevronLeft, ChevronRight, Calendar, Download } from "lucide-react";
 import { Order, loadOrders, updateOrderStatus, deleteOrder, deleteOldOrders } from "@/data/ordersConfig";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { format, startOfDay, endOfDay, addDays, subDays, isSameDay } from "date-fns";
+import { format, startOfDay, addDays, subDays, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import jsPDF from "jspdf";
 
 export const OrdersManager = () => {
   const [allOrders, setAllOrders] = useState<Order[]>([]);
@@ -51,6 +52,237 @@ export const OrdersManager = () => {
       setAllOrders(loadOrders());
       toast.success(`${deletedCount} pedido(s) antigo(s) excluído(s)!`);
     }
+  };
+
+  const handleDownloadPDF = () => {
+    // Group orders by date
+    const ordersByDate: { [key: string]: Order[] } = {};
+    
+    allOrders.forEach(order => {
+      const dateKey = format(new Date(order.createdAt), "yyyy-MM-dd");
+      if (!ordersByDate[dateKey]) {
+        ordersByDate[dateKey] = [];
+      }
+      ordersByDate[dateKey].push(order);
+    });
+
+    const sortedDates = Object.keys(ordersByDate).sort((a, b) => b.localeCompare(a));
+
+    if (sortedDates.length === 0) {
+      toast.error("Não há pedidos para exportar");
+      return;
+    }
+
+    const doc = new jsPDF();
+    let yPosition = 20;
+    const pageHeight = 280;
+    const lineHeight = 6;
+    const marginLeft = 15;
+
+    doc.setFontSize(18);
+    doc.text("Relatório de Pedidos", marginLeft, yPosition);
+    yPosition += 15;
+
+    sortedDates.forEach((dateKey, dateIndex) => {
+      const orders = ordersByDate[dateKey];
+      const dateFormatted = format(new Date(dateKey), "dd/MM/yyyy - EEEE", { locale: ptBR });
+      
+      // Calculate daily total
+      const dailyTotal = orders
+        .filter(o => o.status !== "cancelled")
+        .reduce((sum, o) => sum + o.total, 0);
+
+      // Check if we need a new page for the date header
+      if (yPosition > pageHeight - 40) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      // Date header with background
+      doc.setFillColor(240, 240, 240);
+      doc.rect(marginLeft - 2, yPosition - 5, 180, 10, "F");
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(dateFormatted, marginLeft, yPosition);
+      doc.text(`Total: R$ ${dailyTotal.toFixed(2).replace(".", ",")}`, 150, yPosition);
+      yPosition += 12;
+
+      orders.forEach((order, orderIndex) => {
+        // Check if we need a new page
+        if (yPosition > pageHeight - 50) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        
+        const time = format(new Date(order.createdAt), "HH:mm");
+        const statusText = order.status === "confirmed" ? "[CONFIRMADO]" : 
+                          order.status === "cancelled" ? "[CANCELADO]" : "[PENDENTE]";
+        
+        doc.text(`${time} - ${order.customerName} ${statusText}`, marginLeft, yPosition);
+        doc.text(`R$ ${order.total.toFixed(2).replace(".", ",")}`, 170, yPosition);
+        yPosition += lineHeight;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        
+        // Delivery info
+        const deliveryText = order.deliveryType === "table" 
+          ? `Mesa ${order.tableNumber}` 
+          : order.deliveryType === "pickup" 
+            ? "Retirada na loja" 
+            : `Delivery${order.address ? `: ${order.address.substring(0, 50)}` : ""}`;
+        doc.text(`${order.customerPhone} • ${deliveryText}`, marginLeft + 5, yPosition);
+        yPosition += lineHeight;
+
+        // Items
+        order.items.forEach(item => {
+          if (yPosition > pageHeight - 10) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          doc.text(`  ${item.quantity}x ${item.name} (${item.size})`, marginLeft + 5, yPosition);
+          yPosition += lineHeight - 1;
+        });
+
+        // Extras
+        order.extras.forEach(extra => {
+          if (yPosition > pageHeight - 10) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          doc.text(`  + ${extra.name}`, marginLeft + 5, yPosition);
+          yPosition += lineHeight - 1;
+        });
+
+        // Drink
+        if (order.drink) {
+          if (yPosition > pageHeight - 10) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          doc.text(`  + ${order.drink.name}`, marginLeft + 5, yPosition);
+          yPosition += lineHeight - 1;
+        }
+
+        yPosition += 4;
+      });
+
+      yPosition += 8;
+    });
+
+    // Grand total
+    const grandTotal = allOrders
+      .filter(o => o.status !== "cancelled")
+      .reduce((sum, o) => sum + o.total, 0);
+    
+    if (yPosition > pageHeight - 20) {
+      doc.addPage();
+      yPosition = 20;
+    }
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`TOTAL GERAL: R$ ${grandTotal.toFixed(2).replace(".", ",")}`, marginLeft, yPosition);
+
+    // Save the PDF
+    const fileName = `pedidos_${format(new Date(), "yyyy-MM-dd_HH-mm")}.pdf`;
+    doc.save(fileName);
+    toast.success("PDF gerado com sucesso!");
+  };
+
+  const handleDownloadDayPDF = () => {
+    if (filteredOrders.length === 0) {
+      toast.error("Não há pedidos neste dia para exportar");
+      return;
+    }
+
+    const doc = new jsPDF();
+    let yPosition = 20;
+    const lineHeight = 6;
+    const marginLeft = 15;
+    const pageHeight = 280;
+
+    const dateFormatted = format(selectedDate, "dd/MM/yyyy - EEEE", { locale: ptBR });
+    
+    // Calculate daily total
+    const dailyTotal = filteredOrders
+      .filter(o => o.status !== "cancelled")
+      .reduce((sum, o) => sum + o.total, 0);
+
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Pedidos - ${dateFormatted}`, marginLeft, yPosition);
+    yPosition += 10;
+    
+    doc.setFontSize(12);
+    doc.text(`Total do dia: R$ ${dailyTotal.toFixed(2).replace(".", ",")}`, marginLeft, yPosition);
+    doc.text(`${filteredOrders.length} pedido(s)`, 120, yPosition);
+    yPosition += 15;
+
+    filteredOrders.forEach((order) => {
+      if (yPosition > pageHeight - 50) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      
+      const time = format(new Date(order.createdAt), "HH:mm");
+      const statusText = order.status === "confirmed" ? "[CONFIRMADO]" : 
+                        order.status === "cancelled" ? "[CANCELADO]" : "[PENDENTE]";
+      
+      doc.text(`${time} - ${order.customerName} ${statusText}`, marginLeft, yPosition);
+      doc.text(`R$ ${order.total.toFixed(2).replace(".", ",")}`, 170, yPosition);
+      yPosition += lineHeight;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      
+      const deliveryText = order.deliveryType === "table" 
+        ? `Mesa ${order.tableNumber}` 
+        : order.deliveryType === "pickup" 
+          ? "Retirada na loja" 
+          : `Delivery${order.address ? `: ${order.address.substring(0, 50)}` : ""}`;
+      doc.text(`${order.customerPhone} • ${deliveryText}`, marginLeft + 5, yPosition);
+      yPosition += lineHeight;
+
+      order.items.forEach(item => {
+        if (yPosition > pageHeight - 10) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(`  ${item.quantity}x ${item.name} (${item.size})`, marginLeft + 5, yPosition);
+        yPosition += lineHeight - 1;
+      });
+
+      order.extras.forEach(extra => {
+        if (yPosition > pageHeight - 10) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(`  + ${extra.name}`, marginLeft + 5, yPosition);
+        yPosition += lineHeight - 1;
+      });
+
+      if (order.drink) {
+        if (yPosition > pageHeight - 10) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(`  + ${order.drink.name}`, marginLeft + 5, yPosition);
+        yPosition += lineHeight - 1;
+      }
+
+      yPosition += 6;
+    });
+
+    const fileName = `pedidos_${format(selectedDate, "yyyy-MM-dd")}.pdf`;
+    doc.save(fileName);
+    toast.success("PDF do dia gerado com sucesso!");
   };
 
   const handleConfirm = (orderId: string) => {
@@ -212,6 +444,24 @@ ${drinkText}
             <span className="font-bold text-brand-pink">R$ {dailyTotal.toFixed(2).replace(".", ",")}</span>
           </div>
         </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2">
+        <button
+          onClick={handleDownloadDayPDF}
+          className="flex-1 py-2 rounded-lg bg-brand-pink/10 text-brand-pink text-sm font-medium hover:bg-brand-pink/20 transition-colors flex items-center justify-center gap-2"
+        >
+          <Download className="w-4 h-4" />
+          PDF do dia
+        </button>
+        <button
+          onClick={handleDownloadPDF}
+          className="flex-1 py-2 rounded-lg bg-muted text-foreground text-sm font-medium hover:bg-muted/80 transition-colors flex items-center justify-center gap-2"
+        >
+          <Download className="w-4 h-4" />
+          PDF completo
+        </button>
       </div>
 
       {/* Delete Old Orders */}
