@@ -63,6 +63,12 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
         if (!hasMatchingCategory) return false;
       }
       
+      if (step.showCondition === "items_and_categories") {
+        const hasMatchingItem = step.triggerItemIds?.length ? step.triggerItemIds.some(id => cartItemIds.includes(id)) : false;
+        const hasMatchingCategory = step.triggerCategoryIds?.length ? step.triggerCategoryIds.some(id => cartCategoryIds.includes(id)) : false;
+        if (!hasMatchingItem && !hasMatchingCategory) return false;
+      }
+      
       return true;
     });
   }, [checkoutConfig.steps, isTable, deliveryType, cartItemIds, cartCategoryIds]);
