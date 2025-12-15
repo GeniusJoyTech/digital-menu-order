@@ -70,18 +70,27 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
   const totalSteps = visibleSteps.length;
   const currentStep = visibleSteps[currentStepIndex];
 
-  const handleStepValueChange = (stepId: string, optionId: string, multiSelect: boolean) => {
+  const handleStepValueChange = (step: CheckoutStep, optionId: string) => {
     setStepValues(prev => {
-      if (multiSelect) {
-        const current = prev[stepId] || [];
+      if (step.multiSelect) {
+        const current = prev[step.id] || [];
+        const isSelected = current.includes(optionId);
+        
+        // If trying to add and max is reached, don't add
+        if (!isSelected && step.maxSelectionsEnabled && step.maxSelections) {
+          if (current.length >= step.maxSelections) {
+            return prev;
+          }
+        }
+        
         return {
           ...prev,
-          [stepId]: current.includes(optionId)
+          [step.id]: isSelected
             ? current.filter(id => id !== optionId)
             : [...current, optionId]
         };
       } else {
-        return { ...prev, [stepId]: [optionId] };
+        return { ...prev, [step.id]: [optionId] };
       }
     });
   };
@@ -241,6 +250,9 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
     if (currentStep.type === "extras" || currentStep.type === "drinks" || currentStep.type === "custom_select") {
       const options = getStepOptions(currentStep);
       const selectedValues = stepValues[currentStep.id] || [];
+      const maxReached = currentStep.maxSelectionsEnabled && currentStep.maxSelections 
+        ? selectedValues.length >= currentStep.maxSelections 
+        : false;
       
       return (
         <div className="space-y-4">
@@ -252,20 +264,26 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
               {currentStep.subtitle}
             </p>
           )}
+          {currentStep.maxSelectionsEnabled && currentStep.maxSelections && (
+            <p className="text-center text-sm text-brand-pink font-medium">
+              {selectedValues.length} de {currentStep.maxSelections} selecionado(s)
+            </p>
+          )}
           
           <div className="grid grid-cols-1 gap-2 max-h-[40vh] overflow-y-auto">
             {options.map((option) => {
               const isOutOfStock = option.stock === 0 && option.id !== "none";
               const isSelected = selectedValues.includes(option.id);
+              const isDisabled = isOutOfStock || (maxReached && !isSelected);
               
               return (
                 <button
                   key={option.id}
-                  onClick={() => !isOutOfStock && handleStepValueChange(currentStep.id, option.id, currentStep.multiSelect)}
-                  disabled={isOutOfStock}
+                  onClick={() => !isDisabled && handleStepValueChange(currentStep, option.id)}
+                  disabled={isDisabled}
                   className={cn(
                     "flex items-center justify-between p-3 rounded-xl border-2 transition-all",
-                    isOutOfStock
+                    isDisabled && !isSelected
                       ? "border-border bg-muted opacity-50 cursor-not-allowed"
                       : isSelected
                         ? "border-brand-pink bg-pastel-pink"
