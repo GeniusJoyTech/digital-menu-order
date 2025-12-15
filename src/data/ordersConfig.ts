@@ -26,7 +26,21 @@ export const loadOrders = (): Order[] => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      let orders: Order[] = JSON.parse(stored);
+      
+      // Auto-delete orders older than 90 days
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 90);
+      
+      const filteredOrders = orders.filter(o => new Date(o.createdAt) >= cutoffDate);
+      
+      // Save back if any orders were removed
+      if (filteredOrders.length !== orders.length) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredOrders));
+        console.log(`Auto-deleted ${orders.length - filteredOrders.length} orders older than 90 days`);
+      }
+      
+      return filteredOrders;
     }
   } catch (error) {
     console.error("Error loading orders:", error);
