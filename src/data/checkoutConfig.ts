@@ -11,6 +11,7 @@ export interface CheckoutStepOption {
   name: string;
   price: number;
   stock?: number;
+  trackStock?: boolean; // Whether this option should be tracked in stock management
 }
 
 export type PricingRuleType = "per_item" | "flat_after_limit" | "per_item_after_limit";
