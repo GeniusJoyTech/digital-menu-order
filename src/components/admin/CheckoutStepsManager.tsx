@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Trash2, Edit2, Save, X, Eye, EyeOff, ChevronUp, ChevronDown, Filter, DollarSign } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, Trash2, Edit2, Save, X, Eye, EyeOff, ChevronUp, ChevronDown, Filter, DollarSign, RotateCcw } from "lucide-react";
 import { CheckoutStep, PricingRule } from "@/data/checkoutConfig";
 import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ interface CheckoutStepsManagerProps {
   onAdd: (step: CheckoutStep) => void;
   onDelete: (id: string) => void;
   onReorder: (steps: CheckoutStep[]) => void;
+  onResetToDefault: () => void;
 }
 
 const STEP_TYPE_LABELS: Record<string, string> = {
@@ -46,7 +47,12 @@ export const CheckoutStepsManager = ({
   onAdd,
   onDelete,
   onReorder,
+  onResetToDefault,
 }: CheckoutStepsManagerProps) => {
+  // Local state that holds changes until save is clicked
+  const [localSteps, setLocalSteps] = useState<CheckoutStep[]>(steps);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
   const [editingStep, setEditingStep] = useState<CheckoutStep | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
@@ -70,11 +76,69 @@ export const CheckoutStepsManager = ({
   const [newOptionName, setNewOptionName] = useState("");
   const [newOptionPrice, setNewOptionPrice] = useState("");
 
+  // Sync local state when props change (e.g., after reset)
+  useEffect(() => {
+    setLocalSteps(steps);
+    setHasUnsavedChanges(false);
+  }, [steps]);
+
+  // Update a step in local state
+  const updateLocalStep = useCallback((step: CheckoutStep) => {
+    setLocalSteps(prev => prev.map(s => s.id === step.id ? step : s));
+    setHasUnsavedChanges(true);
+  }, []);
+
+  // Reorder steps in local state
+  const reorderLocalSteps = useCallback((newSteps: CheckoutStep[]) => {
+    setLocalSteps(newSteps);
+    setHasUnsavedChanges(true);
+  }, []);
+
+  // Delete a step from local state
+  const deleteLocalStep = useCallback((id: string) => {
+    if (id === "delivery" || id === "name") {
+      toast.error("Esta etapa é obrigatória e não pode ser removida");
+      return;
+    }
+    setLocalSteps(prev => prev.filter(s => s.id !== id));
+    setHasUnsavedChanges(true);
+    toast.success("Etapa removida!");
+  }, []);
+
+  // Add a step to local state
+  const addLocalStep = useCallback((step: CheckoutStep) => {
+    setLocalSteps(prev => [...prev, step]);
+    setHasUnsavedChanges(true);
+  }, []);
+
+  // Save all changes to context
+  const handleSaveAllChanges = () => {
+    // Apply all local changes to the context
+    onReorder(localSteps);
+    setHasUnsavedChanges(false);
+    toast.success("Configurações salvas!");
+  };
+
+  // Discard all changes
+  const handleDiscardChanges = () => {
+    setLocalSteps(steps);
+    setHasUnsavedChanges(false);
+    toast.success("Alterações descartadas!");
+  };
+
+  // Reset to default configuration
+  const handleResetToDefault = () => {
+    if (confirm("Tem certeza que deseja restaurar as etapas para o padrão inicial? Todas as suas configurações serão perdidas.")) {
+      onResetToDefault();
+      toast.success("Configurações restauradas para o padrão!");
+    }
+  };
+
   const handleSaveStep = () => {
     if (!editingStep) return;
-    onUpdate(editingStep);
+    updateLocalStep(editingStep);
     setEditingStep(null);
-    toast.success("Etapa atualizada!");
+    toast.success("Etapa atualizada localmente. Clique em 'Salvar Configurações' para aplicar.");
   };
 
   const handleAddStep = () => {
@@ -84,7 +148,7 @@ export const CheckoutStepsManager = ({
     }
 
     const id = `step-${Date.now()}`;
-    onAdd({
+    addLocalStep({
       id,
       type: newStep.type || "custom_select",
       title: newStep.title,
@@ -115,7 +179,7 @@ export const CheckoutStepsManager = ({
       pricingRule: { ...defaultPricingRule },
     });
     setShowAddForm(false);
-    toast.success("Etapa adicionada!");
+    toast.success("Etapa adicionada localmente. Clique em 'Salvar Configurações' para aplicar.");
   };
 
   const addOptionToStep = (step: CheckoutStep, isEditing: boolean) => {
@@ -206,28 +270,20 @@ export const CheckoutStepsManager = ({
   };
 
   const handleDeleteStep = (id: string) => {
-    if (id === "delivery" || id === "name") {
-      toast.error("Esta etapa é obrigatória e não pode ser removida");
-      return;
-    }
-    if (confirm("Tem certeza que deseja remover esta etapa?")) {
-      onDelete(id);
-      toast.success("Etapa removida!");
-    }
+    deleteLocalStep(id);
   };
 
   const moveStep = (index: number, direction: "up" | "down") => {
     const newIndex = direction === "up" ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= steps.length) return;
+    if (newIndex < 0 || newIndex >= localSteps.length) return;
 
-    const newSteps = [...steps];
+    const newSteps = [...localSteps];
     [newSteps[index], newSteps[newIndex]] = [newSteps[newIndex], newSteps[index]];
-    onReorder(newSteps);
+    reorderLocalSteps(newSteps);
   };
 
   const toggleEnabled = (step: CheckoutStep) => {
-    onUpdate({ ...step, enabled: !step.enabled });
-    toast.success(step.enabled ? "Etapa desabilitada" : "Etapa habilitada");
+    updateLocalStep({ ...step, enabled: !step.enabled });
   };
 
   const toggleItemInTriggerList = (step: CheckoutStep, itemId: string) => {
@@ -239,7 +295,7 @@ export const CheckoutStepsManager = ({
     if (step === editingStep) {
       setEditingStep({ ...step, triggerItemIds: newIds });
     } else {
-      onUpdate({ ...step, triggerItemIds: newIds });
+      updateLocalStep({ ...step, triggerItemIds: newIds });
     }
   };
 
@@ -252,7 +308,7 @@ export const CheckoutStepsManager = ({
     if (step === editingStep) {
       setEditingStep({ ...step, triggerCategoryIds: newIds });
     } else {
-      onUpdate({ ...step, triggerCategoryIds: newIds });
+      updateLocalStep({ ...step, triggerCategoryIds: newIds });
     }
   };
 
@@ -270,7 +326,7 @@ export const CheckoutStepsManager = ({
           <button
             onClick={() => {
               const updated = { ...currentStep, showCondition: "always" as const, triggerItemIds: [], triggerCategoryIds: [] };
-              isEditing ? setEditingStep(updated) : onUpdate(updated);
+              isEditing ? setEditingStep(updated) : updateLocalStep(updated);
             }}
             className={cn(
               "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors min-w-[80px]",
@@ -284,7 +340,7 @@ export const CheckoutStepsManager = ({
           <button
             onClick={() => {
               const updated = { ...currentStep, showCondition: "specific_items" as const, triggerCategoryIds: [] };
-              isEditing ? setEditingStep(updated) : onUpdate(updated);
+              isEditing ? setEditingStep(updated) : updateLocalStep(updated);
             }}
             className={cn(
               "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors min-w-[80px]",
@@ -298,7 +354,7 @@ export const CheckoutStepsManager = ({
           <button
             onClick={() => {
               const updated = { ...currentStep, showCondition: "specific_categories" as const, triggerItemIds: [] };
-              isEditing ? setEditingStep(updated) : onUpdate(updated);
+              isEditing ? setEditingStep(updated) : updateLocalStep(updated);
             }}
             className={cn(
               "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors min-w-[80px]",
@@ -515,6 +571,49 @@ export const CheckoutStepsManager = ({
 
   return (
     <div className="space-y-4">
+      {/* Save/Discard/Reset Actions */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={handleSaveAllChanges}
+          disabled={!hasUnsavedChanges}
+          className={cn(
+            "flex-1 flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors justify-center",
+            hasUnsavedChanges
+              ? "bg-brand-pink text-primary-foreground hover:opacity-90"
+              : "bg-muted text-muted-foreground cursor-not-allowed"
+          )}
+        >
+          <Save className="w-5 h-5" />
+          Salvar Configurações
+        </button>
+        
+        {hasUnsavedChanges && (
+          <button
+            onClick={handleDiscardChanges}
+            className="flex items-center gap-2 px-4 py-3 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+          >
+            <X className="w-5 h-5" />
+            Descartar
+          </button>
+        )}
+        
+        <button
+          onClick={handleResetToDefault}
+          className="flex items-center gap-2 px-4 py-3 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+        >
+          <RotateCcw className="w-5 h-5" />
+          Restaurar Padrão
+        </button>
+      </div>
+
+      {hasUnsavedChanges && (
+        <div className="p-3 rounded-lg bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700">
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            Você tem alterações não salvas. Clique em "Salvar Configurações" para aplicar.
+          </p>
+        </div>
+      )}
+
       <div className="p-4 rounded-xl bg-muted/50 border border-border">
         <p className="text-sm text-muted-foreground">
           Configure as etapas que aparecem antes do envio do pedido. Você pode renomear, 
@@ -794,7 +893,7 @@ export const CheckoutStepsManager = ({
       )}
 
       {/* Steps List */}
-      {steps.map((step, index) => (
+      {localSteps.map((step, index) => (
         <div
           key={step.id}
           className={cn(
@@ -1084,7 +1183,7 @@ export const CheckoutStepsManager = ({
                   </button>
                   <button
                     onClick={() => moveStep(index, "down")}
-                    disabled={index === steps.length - 1}
+                    disabled={index === localSteps.length - 1}
                     className="p-1 rounded hover:bg-muted disabled:opacity-30"
                   >
                     <ChevronDown className="w-4 h-4" />

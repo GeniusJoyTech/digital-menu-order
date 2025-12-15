@@ -240,6 +240,7 @@ const Admin = () => {
             onAdd={addStep}
             onDelete={deleteStep}
             onReorder={reorderSteps}
+            onResetToDefault={resetCheckout}
           />
         )}
 
