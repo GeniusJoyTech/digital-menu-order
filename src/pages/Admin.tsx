@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMenu } from "@/contexts/MenuContext";
-import { useDesign, CardLayout, CustomFont } from "@/contexts/DesignContext";
+import { useDesign, CardLayout, CustomFont, DesignConfig } from "@/contexts/DesignContext";
 import { useCheckout } from "@/contexts/CheckoutContext";
 import { Navigate } from "react-router-dom";
 import { LogOut, Plus, Trash2, Edit2, Save, X, Upload, Image, Package, Minus, Palette, Settings, List, Layers, Type, ShoppingBag, RotateCcw } from "lucide-react";
@@ -12,6 +12,7 @@ import { ColorPicker } from "@/components/admin/ColorPicker";
 import { CategoryManager } from "@/components/admin/CategoryManager";
 import { CheckoutStepsManager } from "@/components/admin/CheckoutStepsManager";
 import { OrdersManager } from "@/components/admin/OrdersManager";
+import { DesignManager } from "@/components/admin/DesignManager";
 
 
 const LAYOUT_OPTIONS: { value: CardLayout; label: string; description: string }[] = [
@@ -39,8 +40,10 @@ const Admin = () => {
   const [showAddExtra, setShowAddExtra] = useState(false);
   const [showAddDrink, setShowAddDrink] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const [newFontName, setNewFontName] = useState("");
-  const [newFontUrl, setNewFontUrl] = useState("");
+
+  const handleSaveDesign = (newDesign: DesignConfig) => {
+    updateDesign(newDesign);
+  };
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -547,344 +550,15 @@ const Admin = () => {
         )}
 
         {activeTab === "design" && (
-          <div className="space-y-6">
-            {/* Logo Section */}
-            <div className="p-4 rounded-xl bg-card border border-border space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Image className="w-5 h-5 text-brand-pink" />
-                <h3 className="font-bold text-foreground">Logo da Loja</h3>
-              </div>
-              
-              <div className="flex items-center gap-4">
-                <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted flex items-center justify-center border-2 border-border">
-                  {design.logo ? (
-                    <img src={design.logo} alt="Logo" className="w-full h-full object-cover" />
-                  ) : (
-                    <Image className="w-10 h-10 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="flex-1 space-y-2">
-                  <input
-                    ref={logoInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        if (file.size > 2 * 1024 * 1024) {
-                          toast.error("Imagem muito grande. Máximo 2MB.");
-                          return;
-                        }
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          updateDesign({ logo: reader.result as string });
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => logoInputRef.current?.click()}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
-                  >
-                    <Upload className="w-4 h-4" />
-                    Upload Logo
-                  </button>
-                  {design.logo && (
-                    <button
-                      onClick={() => {
-                        updateDesign({ logo: "" });
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Remover Logo
-                    </button>
-                  )}
-                </div>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-foreground">Nome da Loja</label>
-                <input
-                  type="text"
-                  value={design.storeName}
-                  onChange={(e) => updateDesign({ storeName: e.target.value })}
-                  className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-foreground">Descrição</label>
-                <input
-                  type="text"
-                  value={design.storeDescription || ""}
-                  onChange={(e) => updateDesign({ storeDescription: e.target.value })}
-                  placeholder="Ex: Personalizamos o copo com o seu nome!"
-                  className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
-                />
-              </div>
-
-              {/* Social Links */}
-              <div className="border-t border-border pt-4 mt-4">
-                <h4 className="text-sm font-medium text-foreground mb-3">Redes Sociais</h4>
-                <div className="space-y-3">
-                  {(design.socialLinks || []).map((social, index) => (
-                    <div key={index} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={social.platform}
-                        onChange={(e) => {
-                          const newLinks = [...(design.socialLinks || [])];
-                          newLinks[index] = { ...social, platform: e.target.value };
-                          updateDesign({ socialLinks: newLinks });
-                        }}
-                        placeholder="Nome (ex: Instagram)"
-                        className="flex-1 p-3 rounded-xl border border-border bg-background text-foreground"
-                      />
-                      <input
-                        type="text"
-                        value={social.url}
-                        onChange={(e) => {
-                          const newLinks = [...(design.socialLinks || [])];
-                          newLinks[index] = { ...social, url: e.target.value };
-                          updateDesign({ socialLinks: newLinks });
-                        }}
-                        placeholder="Link (ex: https://instagram.com/...)"
-                        className="flex-[2] p-3 rounded-xl border border-border bg-background text-foreground"
-                      />
-                      <button
-                        onClick={() => {
-                          const newLinks = (design.socialLinks || []).filter((_, i) => i !== index);
-                          updateDesign({ socialLinks: newLinks });
-                        }}
-                        className="p-3 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => {
-                      const newLinks = [...(design.socialLinks || []), { platform: "", url: "", icon: "" }];
-                      updateDesign({ socialLinks: newLinks });
-                    }}
-                    className="w-full py-3 rounded-xl bg-muted text-foreground font-medium hover:bg-muted/80 flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Adicionar Rede Social
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Colors Section */}
-            <div className="p-4 rounded-xl bg-card border border-border space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Palette className="w-5 h-5 text-brand-pink" />
-                <h3 className="font-bold text-foreground">Cores do Layout</h3>
-              </div>
-              
-              <div className="grid gap-4 sm:grid-cols-2">
-                <ColorPicker
-                  label="Cor Principal"
-                  hslValue={design.primaryColor}
-                  onChange={(value) => updateDesign({ primaryColor: value })}
-                />
-                
-                <ColorPicker
-                  label="Cor de Fundo"
-                  hslValue={design.backgroundColor}
-                  onChange={(value) => updateDesign({ backgroundColor: value })}
-                />
-                
-                <ColorPicker
-                  label="Cor do Card"
-                  hslValue={design.cardBackground}
-                  onChange={(value) => updateDesign({ cardBackground: value })}
-                />
-                
-                <ColorPicker
-                  label="Cor de Destaque"
-                  hslValue={design.accentColor}
-                  onChange={(value) => updateDesign({ accentColor: value })}
-                />
-              </div>
-            </div>
-
-            {/* Category Colors Section */}
-            <div className="p-4 rounded-xl bg-card border border-border space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Layers className="w-5 h-5 text-brand-pink" />
-                <h3 className="font-bold text-foreground">Cores das Categorias</h3>
-              </div>
-              <p className="text-xs text-muted-foreground mb-3">
-                Para editar as cores de fundo dos itens do cardápio, acesse a aba "Categorias" e edite a cor de cada categoria individualmente.
-              </p>
-              <button
-                onClick={() => setActiveTab("categories")}
-                className="w-full py-3 rounded-xl bg-muted text-foreground font-medium hover:bg-muted/80 flex items-center justify-center gap-2"
-              >
-                <Edit2 className="w-4 h-4" />
-                Ir para Categorias
-              </button>
-            </div>
-
-            {/* Fonts Section */}
-            <div className="p-4 rounded-xl bg-card border border-border space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Type className="w-5 h-5 text-brand-pink" />
-                <h3 className="font-bold text-foreground">Fontes</h3>
-              </div>
-              
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="text-sm font-medium text-foreground">Fonte de Títulos</label>
-                  <select
-                    value={design.fontDisplay}
-                    onChange={(e) => updateDesign({ fontDisplay: e.target.value })}
-                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
-                  >
-                    {getAllFonts().map((font) => (
-                      <option key={font} value={font}>
-                        {font}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium text-foreground">Fonte do Corpo</label>
-                  <select
-                    value={design.fontBody}
-                    onChange={(e) => updateDesign({ fontBody: e.target.value })}
-                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
-                  >
-                    {getAllFonts().map((font) => (
-                      <option key={font} value={font}>
-                        {font}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Add Custom Font */}
-              <div className="border-t border-border pt-4 mt-4">
-                <h4 className="text-sm font-medium text-foreground mb-3">Adicionar Fonte do Google</h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs text-muted-foreground">Nome da Fonte</label>
-                    <input
-                      type="text"
-                      value={newFontName}
-                      onChange={(e) => setNewFontName(e.target.value)}
-                      placeholder="Ex: Momo Signature"
-                      className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">URL do Google Fonts</label>
-                    <input
-                      type="text"
-                      value={newFontUrl}
-                      onChange={(e) => setNewFontUrl(e.target.value)}
-                      placeholder="https://fonts.googleapis.com/css2?family=..."
-                      className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
-                    />
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (newFontName.trim() && newFontUrl.trim()) {
-                        addCustomFont({ name: newFontName.trim(), url: newFontUrl.trim() });
-                        setNewFontName("");
-                        setNewFontUrl("");
-                        toast.success(`Fonte "${newFontName}" adicionada!`);
-                      } else {
-                        toast.error("Preencha o nome e URL da fonte");
-                      }
-                    }}
-                    className="w-full py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Adicionar Fonte
-                  </button>
-                </div>
-              </div>
-
-              {/* Custom Fonts List */}
-              {design.customFonts.length > 0 && (
-                <div className="border-t border-border pt-4 mt-4">
-                  <h4 className="text-sm font-medium text-foreground mb-3">Fontes Personalizadas</h4>
-                  <div className="space-y-2">
-                    {design.customFonts.map((font) => (
-                      <div
-                        key={font.name}
-                        className="flex items-center justify-between p-3 rounded-xl bg-muted"
-                      >
-                        <span className="font-medium text-foreground" style={{ fontFamily: font.name }}>
-                          {font.name}
-                        </span>
-                        <button
-                          onClick={() => {
-                            removeCustomFont(font.name);
-                            toast.success(`Fonte "${font.name}" removida!`);
-                          }}
-                          className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Layout Section */}
-            <div className="p-4 rounded-xl bg-card border border-border space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Package className="w-5 h-5 text-brand-pink" />
-                <h3 className="font-bold text-foreground">Layout dos Cards</h3>
-              </div>
-              
-              <div className="grid gap-3">
-                {LAYOUT_OPTIONS.map((layout) => (
-                  <button
-                    key={layout.value}
-                    onClick={() => updateDesign({ cardLayout: layout.value })}
-                    className={cn(
-                      "p-4 rounded-xl border-2 text-left transition-all",
-                      design.cardLayout === layout.value
-                        ? "border-brand-pink bg-brand-pink/10"
-                        : "border-border bg-background hover:border-brand-pink/50"
-                    )}
-                  >
-                    <h4 className="font-bold text-foreground text-sm">{layout.label}</h4>
-                    <p className="text-xs text-muted-foreground mt-1">{layout.description}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  if (confirm("Tem certeza que deseja restaurar as cores e configurações de design para o padrão inicial?")) {
-                    resetDesign();
-                    toast.success("Design restaurado para o padrão!");
-                  }
-                }}
-                className="flex-1 py-3 rounded-xl bg-destructive/10 text-destructive font-bold hover:bg-destructive/20 flex items-center justify-center gap-2"
-              >
-                <RotateCcw className="w-5 h-5" />
-                Restaurar Padrão
-              </button>
-            </div>
-          </div>
+          <DesignManager
+            design={design}
+            onSave={handleSaveDesign}
+            onReset={resetDesign}
+            onAddCustomFont={addCustomFont}
+            onRemoveCustomFont={removeCustomFont}
+            getAllFonts={getAllFonts}
+            onGoToCategories={() => setActiveTab("categories")}
+          />
         )}
       </div>
 
