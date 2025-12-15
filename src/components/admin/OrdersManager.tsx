@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { Phone, MapPin, ShoppingBag, Trash2, Check, X, MessageCircle, Copy, ChevronLeft, ChevronRight, Calendar, Download, ChefHat, Truck, PackageCheck, Link2 } from "lucide-react";
+import { Phone, MapPin, ShoppingBag, Trash2, Check, X, MessageCircle, Copy, ChevronLeft, ChevronRight, Calendar, Download, ChefHat, Truck, PackageCheck } from "lucide-react";
 import { Order, loadOrders, updateOrderStatus, deleteOrder, deleteOldOrders } from "@/data/ordersConfig";
-import { createDeliveryTracking, getDeliveryByOrderId, DeliveryTracking } from "@/data/deliveryConfig";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format, startOfDay, addDays, subDays, isSameDay } from "date-fns";
@@ -309,52 +308,19 @@ export const OrdersManager = () => {
     window.open(`https://wa.me/${formattedPhone}`, "_blank");
   };
 
-  const sendStatusMessage = (order: Order, status: "kitchen" | "left" | "delivered", includeTracking: boolean = false) => {
+  const sendStatusMessage = (order: Order, status: "kitchen" | "left" | "delivered") => {
     const cleanPhone = order.customerPhone.replace(/\D/g, "");
     const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
     
-    let trackingLink = "";
-    if (includeTracking && status === "left") {
-      const existingDelivery = getDeliveryByOrderId(order.id);
-      const delivery = existingDelivery || createDeliveryTracking(order.id, order.customerName);
-      trackingLink = `\n\n📍 Acompanhe sua entrega:\n${window.location.origin}/rastreio/${delivery.id}`;
-    }
-    
     const messages = {
       kitchen: `Olá ${order.customerName}! 👨‍🍳\n\nSeu pedido já está sendo preparado na cozinha!\n\nEm breve ficará pronto. Obrigado pela preferência! 🍹`,
-      left: `Olá ${order.customerName}! 🛵\n\nSeu pedido acabou de sair para entrega!${trackingLink}\n\nEm breve chegará até você. Obrigado! 📦`,
+      left: `Olá ${order.customerName}! 🛵\n\nSeu pedido acabou de sair para entrega!\n\nEm breve chegará até você. Obrigado! 📦`,
       delivered: `Olá ${order.customerName}! ✅\n\nSeu pedido foi entregue!\n\nEsperamos que goste! Obrigado pela preferência! 💜`
     };
 
     const message = encodeURIComponent(messages[status]);
     window.open(`https://wa.me/${formattedPhone}?text=${message}`, "_blank");
     toast.success("WhatsApp aberto com a mensagem!");
-  };
-
-  const generateTrackingLink = (order: Order) => {
-    const existingDelivery = getDeliveryByOrderId(order.id);
-    const delivery = existingDelivery || createDeliveryTracking(order.id, order.customerName);
-    
-    const customerLink = `${window.location.origin}/rastreio/${delivery.id}`;
-    const driverLink = `${window.location.origin}/rastreio/${delivery.id}?driver=true`;
-    
-    navigator.clipboard.writeText(driverLink);
-    toast.success("Link do motoboy copiado! O link do cliente será enviado via WhatsApp.");
-    
-    return { customerLink, driverLink, delivery };
-  };
-
-  const handleSendTrackingToCustomer = (order: Order) => {
-    const { customerLink } = generateTrackingLink(order);
-    
-    const cleanPhone = order.customerPhone.replace(/\D/g, "");
-    const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
-    
-    const message = encodeURIComponent(
-      `Olá ${order.customerName}! 🛵\n\nSeu pedido acabou de sair para entrega!\n\n📍 Acompanhe sua entrega em tempo real:\n${customerLink}\n\nEm breve chegará até você. Obrigado! 📦`
-    );
-    
-    window.open(`https://wa.me/${formattedPhone}?text=${message}`, "_blank");
   };
 
   const handleCopyOrder = (order: Order) => {
@@ -617,52 +583,24 @@ ${drinkText}
 
             {/* Status Messages */}
             {order.status === "confirmed" && (
-              <div className="space-y-2 pt-2 border-t border-border">
-                {/* Generate Tracking Link */}
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                 <button
-                  onClick={() => {
-                    const { driverLink } = generateTrackingLink(order);
-                    toast.success(
-                      <div className="space-y-2">
-                        <p className="font-medium">Links gerados!</p>
-                        <p className="text-xs">Link do motoboy copiado para área de transferência</p>
-                      </div>
-                    );
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-2 rounded-lg bg-purple-500/10 text-purple-600 text-xs font-medium hover:bg-purple-500/20 transition-colors"
+                  onClick={() => sendStatusMessage(order, "kitchen")}
+                  className="flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 px-2 rounded-lg bg-orange-500/10 text-orange-600 text-xs font-medium hover:bg-orange-500/20 transition-colors"
                 >
-                  <Link2 className="w-3 h-3" />
-                  Gerar Link de Rastreio (Motoboy)
+                  <ChefHat className="w-3 h-3" />
+                  Na cozinha
                 </button>
-                
-                {/* Status Buttons */}
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => sendStatusMessage(order, "kitchen")}
-                    className="flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 px-2 rounded-lg bg-orange-500/10 text-orange-600 text-xs font-medium hover:bg-orange-500/20 transition-colors"
-                  >
-                    <ChefHat className="w-3 h-3" />
-                    Na cozinha
-                  </button>
-                  <button
-                    onClick={() => sendStatusMessage(order, "left", false)}
-                    className="flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 px-2 rounded-lg bg-blue-500/10 text-blue-600 text-xs font-medium hover:bg-blue-500/20 transition-colors"
-                  >
-                    <Truck className="w-3 h-3" />
-                    Saiu
-                  </button>
-                  <button
-                    onClick={() => handleSendTrackingToCustomer(order)}
-                    className="flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 px-2 rounded-lg bg-indigo-500/10 text-indigo-600 text-xs font-medium hover:bg-indigo-500/20 transition-colors"
-                  >
-                    <Link2 className="w-3 h-3" />
-                    Saiu + Rastreio
-                  </button>
-                </div>
-                
+                <button
+                  onClick={() => sendStatusMessage(order, "left")}
+                  className="flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 px-2 rounded-lg bg-blue-500/10 text-blue-600 text-xs font-medium hover:bg-blue-500/20 transition-colors"
+                >
+                  <Truck className="w-3 h-3" />
+                  Saiu
+                </button>
                 <button
                   onClick={() => sendStatusMessage(order, "delivered")}
-                  className="w-full flex items-center justify-center gap-1 py-2 px-2 rounded-lg bg-green-500/10 text-green-600 text-xs font-medium hover:bg-green-500/20 transition-colors"
+                  className="flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 px-2 rounded-lg bg-green-500/10 text-green-600 text-xs font-medium hover:bg-green-500/20 transition-colors"
                 >
                   <PackageCheck className="w-3 h-3" />
                   Entregue
