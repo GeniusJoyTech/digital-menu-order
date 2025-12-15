@@ -4,7 +4,7 @@ import { useMenu } from "@/contexts/MenuContext";
 import { useDesign, CardLayout, CustomFont } from "@/contexts/DesignContext";
 import { useCheckout } from "@/contexts/CheckoutContext";
 import { Navigate } from "react-router-dom";
-import { LogOut, Plus, Trash2, Edit2, Save, X, Upload, Image, Package, Minus, Palette, Settings, List, Layers, Type, ShoppingBag } from "lucide-react";
+import { LogOut, Plus, Trash2, Edit2, Save, X, Upload, Image, Package, Minus, Palette, Settings, List, Layers, Type, ShoppingBag, RotateCcw } from "lucide-react";
 import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -788,16 +788,21 @@ const Admin = () => {
               </div>
             </div>
 
-            {/* Save Button */}
-            <button
-              onClick={() => {
-                toast.success("Configurações salvas com sucesso!");
-              }}
-              className="w-full py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 flex items-center justify-center gap-2"
-            >
-              <Save className="w-5 h-5" />
-              Salvar Configurações
-            </button>
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (confirm("Tem certeza que deseja restaurar as cores e configurações de design para o padrão inicial?")) {
+                    resetDesign();
+                    toast.success("Design restaurado para o padrão!");
+                  }
+                }}
+                className="flex-1 py-3 rounded-xl bg-destructive/10 text-destructive font-bold hover:bg-destructive/20 flex items-center justify-center gap-2"
+              >
+                <RotateCcw className="w-5 h-5" />
+                Restaurar Padrão
+              </button>
+            </div>
           </div>
         )}
       </div>
