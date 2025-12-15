@@ -55,6 +55,9 @@ export const CheckoutStepsManager = ({
     options: [],
   });
 
+  const [newOptionName, setNewOptionName] = useState("");
+  const [newOptionPrice, setNewOptionPrice] = useState("");
+
   const handleSaveStep = () => {
     if (!editingStep) return;
     onUpdate(editingStep);
@@ -81,7 +84,7 @@ export const CheckoutStepsManager = ({
       showCondition: newStep.showCondition || "always",
       triggerItemIds: newStep.triggerItemIds || [],
       triggerCategoryIds: newStep.triggerCategoryIds || [],
-      options: [],
+      options: newStep.options || [],
     });
 
     setNewStep({
@@ -99,6 +102,48 @@ export const CheckoutStepsManager = ({
     });
     setShowAddForm(false);
     toast.success("Etapa adicionada!");
+  };
+
+  const addOptionToStep = (step: CheckoutStep, isEditing: boolean) => {
+    if (!newOptionName.trim()) {
+      toast.error("Digite um nome para a opção");
+      return;
+    }
+    
+    const newOption = {
+      id: `opt-${Date.now()}`,
+      name: newOptionName.trim(),
+      price: parseFloat(newOptionPrice) || 0,
+    };
+    
+    if (isEditing && editingStep) {
+      setEditingStep({
+        ...editingStep,
+        options: [...(editingStep.options || []), newOption],
+      });
+    } else if (!isEditing) {
+      setNewStep({
+        ...newStep,
+        options: [...(newStep.options || []), newOption],
+      });
+    }
+    
+    setNewOptionName("");
+    setNewOptionPrice("");
+  };
+
+  const removeOptionFromStep = (optionId: string, isEditing: boolean) => {
+    if (isEditing && editingStep) {
+      setEditingStep({
+        ...editingStep,
+        options: editingStep.options.filter(o => o.id !== optionId),
+      });
+    } else {
+      setNewStep({
+        ...newStep,
+        options: (newStep.options || []).filter(o => o.id !== optionId),
+      });
+    }
   };
 
   const handleDeleteStep = (id: string) => {
@@ -478,6 +523,64 @@ export const CheckoutStepsManager = ({
 
           {renderNewStepConditionSelector()}
 
+          {/* Options for custom_select */}
+          {newStep.type === "custom_select" && (
+            <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
+              <label className="text-sm font-medium text-foreground">Opções da etapa</label>
+              
+              {(newStep.options || []).length > 0 && (
+                <div className="space-y-2">
+                  {(newStep.options || []).map((option) => (
+                    <div
+                      key={option.id}
+                      className="flex items-center justify-between p-2 rounded-lg bg-background"
+                    >
+                      <span className="text-sm text-foreground">{option.name}</span>
+                      <div className="flex items-center gap-2">
+                        {option.price > 0 && (
+                          <span className="text-xs text-brand-pink">
+                            +R$ {option.price.toFixed(2).replace(".", ",")}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => removeOptionFromStep(option.id, false)}
+                          className="p-1 rounded text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newOptionName}
+                  onChange={(e) => setNewOptionName(e.target.value)}
+                  placeholder="Nome da opção"
+                  className="flex-1 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                />
+                <input
+                  type="number"
+                  value={newOptionPrice}
+                  onChange={(e) => setNewOptionPrice(e.target.value)}
+                  placeholder="Preço"
+                  className="w-20 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                  min="0"
+                  step="0.01"
+                />
+                <button
+                  onClick={() => addOptionToStep({} as CheckoutStep, false)}
+                  className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-2">
             <button
               onClick={() => setShowAddForm(false)}
@@ -559,6 +662,64 @@ export const CheckoutStepsManager = ({
                   </div>
 
                   {renderConditionSelector(step, true)}
+
+                  {/* Options for custom_select when editing */}
+                  {editingStep.type === "custom_select" && (
+                    <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
+                      <label className="text-sm font-medium text-foreground">Opções da etapa</label>
+                      
+                      {editingStep.options.length > 0 && (
+                        <div className="space-y-2">
+                          {editingStep.options.map((option) => (
+                            <div
+                              key={option.id}
+                              className="flex items-center justify-between p-2 rounded-lg bg-background"
+                            >
+                              <span className="text-sm text-foreground">{option.name}</span>
+                              <div className="flex items-center gap-2">
+                                {option.price > 0 && (
+                                  <span className="text-xs text-brand-pink">
+                                    +R$ {option.price.toFixed(2).replace(".", ",")}
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => removeOptionFromStep(option.id, true)}
+                                  className="p-1 rounded text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newOptionName}
+                          onChange={(e) => setNewOptionName(e.target.value)}
+                          placeholder="Nome da opção"
+                          className="flex-1 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                        />
+                        <input
+                          type="number"
+                          value={newOptionPrice}
+                          onChange={(e) => setNewOptionPrice(e.target.value)}
+                          placeholder="Preço"
+                          className="w-20 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                          min="0"
+                          step="0.01"
+                        />
+                        <button
+                          onClick={() => addOptionToStep(editingStep, true)}
+                          className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 
