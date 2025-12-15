@@ -13,6 +13,16 @@ export interface CheckoutStepOption {
   stock?: number;
 }
 
+export type PricingRuleType = "per_item" | "flat_after_limit" | "per_item_after_limit";
+
+export interface PricingRule {
+  enabled: boolean;
+  freeItemsLimit: number; // Number of free items before charging
+  ruleType: PricingRuleType;
+  pricePerItem: number; // Price per item (used for "per_item" and "per_item_after_limit")
+  flatPrice: number; // Flat price after limit (used for "flat_after_limit")
+}
+
 export interface CheckoutStep {
   id: string;
   type: CheckoutStepType;
@@ -27,6 +37,7 @@ export interface CheckoutStep {
   showCondition: "always" | "specific_items" | "specific_categories"; // When to show this step
   triggerItemIds?: string[]; // Item IDs that trigger this step (when showCondition is "specific_items")
   triggerCategoryIds?: string[]; // Category IDs that trigger this step (when showCondition is "specific_categories")
+  pricingRule?: PricingRule; // Optional pricing rules for multi-select steps
 }
 
 const STORAGE_KEY = "shakeyes_checkout_config";
