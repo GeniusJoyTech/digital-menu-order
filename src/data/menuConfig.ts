@@ -10,23 +10,9 @@ export interface MenuConfig {
   acaiTurbine: { name: string; stock?: number }[];
 }
 
-const defaultDrinkOptions = [
-  { id: "none", name: "Não, obrigado", price: 0 },
-  { id: "agua", name: "Água", price: 5 },
-  { id: "coca-lata", name: "Coca-Cola Lata", price: 7 },
-  { id: "guarana-lata", name: "Guaraná Lata", price: 7 },
-];
+const defaultDrinkOptions: { id: string; name: string; price: number; stock?: number }[] = [];
 
-const defaultAcaiTurbine = [
-  { name: "Leite em pó" },
-  { name: "Leite ninho" },
-  { name: "Paçoca" },
-  { name: "Granola" },
-  { name: "Ovomaltine" },
-  { name: "Nutella" },
-  { name: "Bis" },
-  { name: "Frutas" }
-];
+const defaultAcaiTurbine: { name: string; stock?: number }[] = [];
 
 const getDefaultConfig = (): MenuConfig => ({
   menuItems: defaultMenuItems,
