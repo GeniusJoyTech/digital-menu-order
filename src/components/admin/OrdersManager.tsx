@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Phone, MapPin, ShoppingBag, Trash2, Check, X, MessageCircle } from "lucide-react";
+import { Phone, MapPin, ShoppingBag, Trash2, Check, X, MessageCircle, Copy } from "lucide-react";
 import { Order, loadOrders, updateOrderStatus, deleteOrder } from "@/data/ordersConfig";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const OrdersManager = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -38,6 +39,41 @@ export const OrdersManager = () => {
     const cleanPhone = phone.replace(/\D/g, "");
     const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
     window.open(`https://wa.me/${formattedPhone}`, "_blank");
+  };
+
+  const handleCopyOrder = (order: Order) => {
+    const itemsText = order.items.map(item => 
+      `${item.quantity}x ${item.name} (${item.size}) - R$ ${(item.price * item.quantity).toFixed(2).replace(".", ",")}`
+    ).join("\n");
+    
+    const extrasText = order.extras.length > 0 
+      ? order.extras.map(e => `+ ${e.name} - R$ ${e.price.toFixed(2).replace(".", ",")}`).join("\n")
+      : "";
+    
+    const drinkText = order.drink 
+      ? `+ ${order.drink.name} - R$ ${order.drink.price.toFixed(2).replace(".", ",")}`
+      : "";
+
+    const deliveryText = order.deliveryType === "table" 
+      ? `Mesa: ${order.tableNumber}` 
+      : order.deliveryType === "pickup" 
+        ? "Retirada na loja" 
+        : `Delivery: ${order.address || ""}`;
+
+    const orderText = `*Confirma seu pedido?*
+
+${order.customerName}
+${deliveryText}
+
+*Itens:*
+${itemsText}
+${extrasText}
+${drinkText}
+
+*Total: R$ ${order.total.toFixed(2).replace(".", ",")}*`;
+
+    navigator.clipboard.writeText(orderText);
+    toast.success("Pedido copiado!");
   };
 
   const formatDate = (isoDate: string) => {
@@ -112,15 +148,24 @@ export const OrdersManager = () => {
             </p>
           </div>
 
-          {/* Phone */}
-          <button
-            onClick={() => handleWhatsApp(order.customerPhone)}
-            className="flex items-center gap-2 text-sm text-brand-pink hover:underline"
-          >
-            <Phone className="w-4 h-4" />
-            {order.customerPhone}
-            <MessageCircle className="w-4 h-4" />
-          </button>
+          {/* Phone & Copy */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleWhatsApp(order.customerPhone)}
+              className="flex items-center gap-2 text-sm text-brand-pink hover:underline"
+            >
+              <Phone className="w-4 h-4" />
+              {order.customerPhone}
+              <MessageCircle className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleCopyOrder(order)}
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <Copy className="w-4 h-4" />
+              Copiar
+            </button>
+          </div>
 
           {/* Address */}
           {order.address && (

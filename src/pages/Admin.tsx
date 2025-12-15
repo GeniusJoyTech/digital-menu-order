@@ -274,6 +274,17 @@ const Admin = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
+                      onClick={() => updateMenuItem({ ...item, stock: undefined })}
+                      className={cn(
+                        "px-2 py-1 rounded text-xs",
+                        item.stock === undefined 
+                          ? "bg-brand-pink text-primary-foreground" 
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      )}
+                    >
+                      ∞
+                    </button>
+                    <button
                       onClick={() => {
                         const currentStock = item.stock ?? 0;
                         if (currentStock > 0) {

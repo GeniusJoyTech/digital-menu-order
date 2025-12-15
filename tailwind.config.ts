@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ["Pacifico", "cursive"],
-        body: ["Poppins", "sans-serif"],
+        display: ["var(--font-display)", "Pacifico", "cursive"],
+        body: ["var(--font-body)", "Poppins", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
