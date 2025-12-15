@@ -77,6 +77,8 @@ export const CheckoutStepsManager = ({
 
   const [newOptionName, setNewOptionName] = useState("");
   const [newOptionPrice, setNewOptionPrice] = useState("");
+  const [newOptionTrackStock, setNewOptionTrackStock] = useState(false);
+  const [editOptionTrackStock, setEditOptionTrackStock] = useState(false);
 
   // Sync local state when props change (e.g., after reset)
   useEffect(() => {
@@ -198,6 +200,7 @@ export const CheckoutStepsManager = ({
       id: `opt-${Date.now()}`,
       name: newOptionName.trim(),
       price: parseFloat(newOptionPrice) || 0,
+      trackStock: newOptionTrackStock,
     };
     
     if (isEditing && editingStep) {
@@ -214,12 +217,14 @@ export const CheckoutStepsManager = ({
     
     setNewOptionName("");
     setNewOptionPrice("");
+    setNewOptionTrackStock(false);
   };
 
-  const startEditingOption = (option: { id: string; name: string; price: number }) => {
+  const startEditingOption = (option: { id: string; name: string; price: number; trackStock?: boolean }) => {
     setEditingOptionId(option.id);
     setEditOptionName(option.name);
     setEditOptionPrice(option.price.toString());
+    setEditOptionTrackStock(option.trackStock || false);
   };
 
   const saveEditingOption = (isEditing: boolean) => {
@@ -232,6 +237,7 @@ export const CheckoutStepsManager = ({
       id: editingOptionId,
       name: editOptionName.trim(),
       price: parseFloat(editOptionPrice) || 0,
+      trackStock: editOptionTrackStock,
     };
 
     if (isEditing && editingStep) {
@@ -259,6 +265,7 @@ export const CheckoutStepsManager = ({
     setEditingOptionId(null);
     setEditOptionName("");
     setEditOptionPrice("");
+    setEditOptionTrackStock(false);
   };
 
   const removeOptionFromStep = (optionId: string, isEditing: boolean) => {
@@ -727,37 +734,53 @@ export const CheckoutStepsManager = ({
                   {(newStep.options || []).map((option) => (
                     <div key={option.id}>
                       {editingOptionId === option.id ? (
-                        <div className="flex gap-2 p-2 rounded-lg bg-background">
-                          <input
-                            type="text"
-                            value={editOptionName}
-                            onChange={(e) => setEditOptionName(e.target.value)}
-                            className="flex-1 p-2 rounded-lg border border-border bg-card text-foreground text-sm"
-                          />
-                          <input
-                            type="number"
-                            value={editOptionPrice}
-                            onChange={(e) => setEditOptionPrice(e.target.value)}
-                            className="w-20 p-2 rounded-lg border border-border bg-card text-foreground text-sm"
-                            min="0"
-                            step="0.01"
-                          />
-                          <button
-                            onClick={() => saveEditingOption(false)}
-                            className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
-                          >
-                            <Save className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={cancelEditingOption}
-                            className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+                        <div className="p-2 rounded-lg bg-background space-y-2">
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={editOptionName}
+                              onChange={(e) => setEditOptionName(e.target.value)}
+                              className="flex-1 p-2 rounded-lg border border-border bg-card text-foreground text-sm"
+                            />
+                            <input
+                              type="number"
+                              value={editOptionPrice}
+                              onChange={(e) => setEditOptionPrice(e.target.value)}
+                              className="w-20 p-2 rounded-lg border border-border bg-card text-foreground text-sm"
+                              min="0"
+                              step="0.01"
+                            />
+                            <button
+                              onClick={() => saveEditingOption(false)}
+                              className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                            >
+                              <Save className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={cancelEditingOption}
+                              className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editOptionTrackStock}
+                              onChange={(e) => setEditOptionTrackStock(e.target.checked)}
+                              className="w-4 h-4 rounded border-border"
+                            />
+                            <span className="text-xs text-muted-foreground">Item de estoque</span>
+                          </label>
                         </div>
                       ) : (
                         <div className="flex items-center justify-between p-2 rounded-lg bg-background">
-                          <span className="text-sm text-foreground">{option.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-foreground">{option.name}</span>
+                            {option.trackStock && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand-pink/20 text-brand-pink">Estoque</span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2">
                             {option.price > 0 && (
                               <span className="text-xs text-brand-pink">
@@ -784,29 +807,40 @@ export const CheckoutStepsManager = ({
                 </div>
               )}
               
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newOptionName}
-                  onChange={(e) => setNewOptionName(e.target.value)}
-                  placeholder="Nome da opção"
-                  className="flex-1 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
-                />
-                <input
-                  type="number"
-                  value={newOptionPrice}
-                  onChange={(e) => setNewOptionPrice(e.target.value)}
-                  placeholder="Preço"
-                  className="w-20 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
-                  min="0"
-                  step="0.01"
-                />
-                <button
-                  onClick={() => addOptionToStep({} as CheckoutStep, false)}
-                  className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newOptionName}
+                    onChange={(e) => setNewOptionName(e.target.value)}
+                    placeholder="Nome da opção"
+                    className="flex-1 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                  />
+                  <input
+                    type="number"
+                    value={newOptionPrice}
+                    onChange={(e) => setNewOptionPrice(e.target.value)}
+                    placeholder="Preço"
+                    className="w-20 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                    min="0"
+                    step="0.01"
+                  />
+                  <button
+                    onClick={() => addOptionToStep({} as CheckoutStep, false)}
+                    className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newOptionTrackStock}
+                    onChange={(e) => setNewOptionTrackStock(e.target.checked)}
+                    className="w-4 h-4 rounded border-border"
+                  />
+                  <span className="text-xs text-muted-foreground">Item de estoque (aparece na aba Estoque)</span>
+                </label>
               </div>
 
               {/* Pricing Rules */}
@@ -1045,37 +1079,53 @@ export const CheckoutStepsManager = ({
                           {editingStep.options.map((option) => (
                             <div key={option.id}>
                               {editingOptionId === option.id ? (
-                                <div className="flex gap-2 p-2 rounded-lg bg-background">
-                                  <input
-                                    type="text"
-                                    value={editOptionName}
-                                    onChange={(e) => setEditOptionName(e.target.value)}
-                                    className="flex-1 p-2 rounded-lg border border-border bg-card text-foreground text-sm"
-                                  />
-                                  <input
-                                    type="number"
-                                    value={editOptionPrice}
-                                    onChange={(e) => setEditOptionPrice(e.target.value)}
-                                    className="w-20 p-2 rounded-lg border border-border bg-card text-foreground text-sm"
-                                    min="0"
-                                    step="0.01"
-                                  />
-                                  <button
-                                    onClick={() => saveEditingOption(true)}
-                                    className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
-                                  >
-                                    <Save className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    onClick={cancelEditingOption}
-                                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
+                                <div className="p-2 rounded-lg bg-background space-y-2">
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="text"
+                                      value={editOptionName}
+                                      onChange={(e) => setEditOptionName(e.target.value)}
+                                      className="flex-1 p-2 rounded-lg border border-border bg-card text-foreground text-sm"
+                                    />
+                                    <input
+                                      type="number"
+                                      value={editOptionPrice}
+                                      onChange={(e) => setEditOptionPrice(e.target.value)}
+                                      className="w-20 p-2 rounded-lg border border-border bg-card text-foreground text-sm"
+                                      min="0"
+                                      step="0.01"
+                                    />
+                                    <button
+                                      onClick={() => saveEditingOption(true)}
+                                      className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                                    >
+                                      <Save className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={cancelEditingOption}
+                                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={editOptionTrackStock}
+                                      onChange={(e) => setEditOptionTrackStock(e.target.checked)}
+                                      className="w-4 h-4 rounded border-border"
+                                    />
+                                    <span className="text-xs text-muted-foreground">Item de estoque</span>
+                                  </label>
                                 </div>
                               ) : (
                                 <div className="flex items-center justify-between p-2 rounded-lg bg-background">
-                                  <span className="text-sm text-foreground">{option.name}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm text-foreground">{option.name}</span>
+                                    {option.trackStock && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand-pink/20 text-brand-pink">Estoque</span>
+                                    )}
+                                  </div>
                                   <div className="flex items-center gap-2">
                                     {option.price > 0 && (
                                       <span className="text-xs text-brand-pink">
@@ -1102,29 +1152,40 @@ export const CheckoutStepsManager = ({
                         </div>
                       )}
                       
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={newOptionName}
-                          onChange={(e) => setNewOptionName(e.target.value)}
-                          placeholder="Nome da opção"
-                          className="flex-1 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
-                        />
-                        <input
-                          type="number"
-                          value={newOptionPrice}
-                          onChange={(e) => setNewOptionPrice(e.target.value)}
-                          placeholder="Preço"
-                          className="w-20 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
-                          min="0"
-                          step="0.01"
-                        />
-                        <button
-                          onClick={() => addOptionToStep(editingStep, true)}
-                          className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newOptionName}
+                            onChange={(e) => setNewOptionName(e.target.value)}
+                            placeholder="Nome da opção"
+                            className="flex-1 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                          />
+                          <input
+                            type="number"
+                            value={newOptionPrice}
+                            onChange={(e) => setNewOptionPrice(e.target.value)}
+                            placeholder="Preço"
+                            className="w-20 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                            min="0"
+                            step="0.01"
+                          />
+                          <button
+                            onClick={() => addOptionToStep(editingStep, true)}
+                            className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={newOptionTrackStock}
+                            onChange={(e) => setNewOptionTrackStock(e.target.checked)}
+                            className="w-4 h-4 rounded border-border"
+                          />
+                          <span className="text-xs text-muted-foreground">Item de estoque (aparece na aba Estoque)</span>
+                        </label>
                       </div>
 
                       {/* Pricing Rules when editing */}

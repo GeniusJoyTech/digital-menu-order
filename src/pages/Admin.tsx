@@ -317,11 +317,11 @@ const Admin = () => {
             </div>
 
             {checkoutConfig.steps
-              .filter(step => step.type === "custom_select" && step.options.length > 0)
+              .filter(step => step.type === "custom_select" && step.options.some(o => o.trackStock))
               .map((step) => (
                 <div key={step.id} className="space-y-4">
                   <h2 className="font-display text-xl text-brand-pink">{step.title}</h2>
-                  {step.options.map((option) => (
+                  {step.options.filter(o => o.trackStock).map((option) => (
                     <div
                       key={option.id}
                       className={cn(
