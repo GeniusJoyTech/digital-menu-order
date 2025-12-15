@@ -684,7 +684,7 @@ const Admin = () => {
             <div className="p-4 rounded-xl bg-card border border-border space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <Palette className="w-5 h-5 text-brand-pink" />
-                <h3 className="font-bold text-foreground">Cores</h3>
+                <h3 className="font-bold text-foreground">Cores do Layout</h3>
               </div>
               
               <div className="grid gap-4 sm:grid-cols-2">
@@ -712,6 +712,24 @@ const Admin = () => {
                   onChange={(value) => updateDesign({ accentColor: value })}
                 />
               </div>
+            </div>
+
+            {/* Category Colors Section */}
+            <div className="p-4 rounded-xl bg-card border border-border space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Layers className="w-5 h-5 text-brand-pink" />
+                <h3 className="font-bold text-foreground">Cores das Categorias</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Para editar as cores de fundo dos itens do cardápio, acesse a aba "Categorias" e edite a cor de cada categoria individualmente.
+              </p>
+              <button
+                onClick={() => setActiveTab("categories")}
+                className="w-full py-3 rounded-xl bg-muted text-foreground font-medium hover:bg-muted/80 flex items-center justify-center gap-2"
+              >
+                <Edit2 className="w-4 h-4" />
+                Ir para Categorias
+              </button>
             </div>
 
             {/* Fonts Section */}
