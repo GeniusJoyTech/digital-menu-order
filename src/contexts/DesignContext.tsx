@@ -98,12 +98,19 @@ export const DesignProvider = ({ children }: { children: ReactNode }) => {
     root.style.setProperty("--card", design.cardBackground);
     root.style.setProperty("--primary", design.accentColor);
 
-    // Apply fonts dynamically
+    // Load all custom fonts first
+    design.customFonts.forEach(loadCustomFont);
+
+    // Check if selected font is a custom font and load it
+    const displayCustomFont = design.customFonts.find(f => f.name === design.fontDisplay);
+    const bodyCustomFont = design.customFonts.find(f => f.name === design.fontBody);
+    
+    if (displayCustomFont) loadCustomFont(displayCustomFont);
+    if (bodyCustomFont) loadCustomFont(bodyCustomFont);
+
+    // Apply fonts dynamically - use proper font stack
     root.style.setProperty("--font-display", `"${design.fontDisplay}", cursive`);
     root.style.setProperty("--font-body", `"${design.fontBody}", sans-serif`);
-
-    // Load all custom fonts
-    design.customFonts.forEach(loadCustomFont);
   }, [design]);
 
   const updateDesign = (updates: Partial<DesignConfig>) => {
