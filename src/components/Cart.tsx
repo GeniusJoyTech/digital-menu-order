@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { ShoppingBag, Plus, Minus, Trash2, Send, X } from "lucide-react";
 import { CartItem } from "@/data/menuData";
 import { useMenu } from "@/contexts/MenuContext";
+import { useCheckout } from "@/contexts/CheckoutContext";
 import { cn } from "@/lib/utils";
 import CheckoutForm, { CheckoutData } from "./CheckoutForm";
 import { saveOrder, Order } from "@/data/ordersConfig";
@@ -18,6 +19,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
   const [isOpen, setIsOpen] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const { config } = useMenu();
+  const { config: checkoutConfig } = useCheckout();
   const { mesa } = useParams();
   const isTable = mesa?.startsWith("mesa-");
   const tableNumber = mesa?.replace("mesa-", "") || null;
@@ -36,8 +38,11 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
     const extrasSelected: { name: string; price: number }[] = [];
     let drinkSelected: { name: string; price: number } | null = null;
 
-    // Process step values to get extras and drinks
+    // Process step values to get extras, drinks, and custom options
     Object.entries(data.stepValues).forEach(([stepId, selectedIds]) => {
+      // Find the step to check its type
+      const step = checkoutConfig.steps.find(s => s.id === stepId);
+      
       selectedIds.forEach(optionId => {
         // Check in extras
         const extra = config.extras.find(e => e.id === optionId);
@@ -53,6 +58,16 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
           if (drink) {
             extrasTotal += drink.price;
             drinkSelected = { name: drink.name, price: drink.price };
+            return;
+          }
+        }
+        
+        // Check in custom step options
+        if (step && step.type === "custom_select") {
+          const customOption = step.options.find(o => o.id === optionId);
+          if (customOption) {
+            extrasTotal += customOption.price;
+            extrasSelected.push({ name: customOption.name, price: customOption.price });
           }
         }
       });
