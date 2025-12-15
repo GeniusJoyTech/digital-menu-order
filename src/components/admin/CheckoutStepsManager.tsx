@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Edit2, Save, X, Eye, EyeOff, ChevronUp, ChevronDown, Filter, DollarSign, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Edit2, Save, X, Eye, EyeOff, ChevronUp, ChevronDown, Filter, DollarSign, RotateCcw, Ban } from "lucide-react";
 import { CheckoutStep, PricingRule } from "@/data/checkoutConfig";
 import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
@@ -71,6 +71,8 @@ export const CheckoutStepsManager = ({
     triggerCategoryIds: [],
     options: [],
     pricingRule: { ...defaultPricingRule },
+    maxSelectionsEnabled: false,
+    maxSelections: 3,
   });
 
   const [newOptionName, setNewOptionName] = useState("");
@@ -162,6 +164,8 @@ export const CheckoutStepsManager = ({
       triggerCategoryIds: newStep.triggerCategoryIds || [],
       options: newStep.options || [],
       pricingRule: newStep.pricingRule,
+      maxSelectionsEnabled: newStep.maxSelectionsEnabled,
+      maxSelections: newStep.maxSelections,
     });
 
     setNewStep({
@@ -177,6 +181,8 @@ export const CheckoutStepsManager = ({
       triggerCategoryIds: [],
       options: [],
       pricingRule: { ...defaultPricingRule },
+      maxSelectionsEnabled: false,
+      maxSelections: 3,
     });
     setShowAddForm(false);
     toast.success("Etapa adicionada localmente. Clique em 'Salvar Configurações' para aplicar.");
@@ -869,11 +875,53 @@ export const CheckoutStepsManager = ({
                           `${newStep.pricingRule?.freeItemsLimit || 0} item(s) grátis, depois R$ ${(newStep.pricingRule?.flatPrice || 0).toFixed(2).replace(".", ",")} fixo`}
                       </p>
                     </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Max Selections Limit */}
+                  {newStep.multiSelect && (
+                    <div className="mt-4 p-3 rounded-lg bg-background border border-border space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Ban className="w-4 h-4 text-brand-pink" />
+                        <label className="text-sm font-medium text-foreground">Limite de seleções</label>
+                      </div>
+
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newStep.maxSelectionsEnabled || false}
+                          onChange={(e) => setNewStep({
+                            ...newStep,
+                            maxSelectionsEnabled: e.target.checked
+                          })}
+                          className="w-4 h-4 rounded border-border"
+                        />
+                        <span className="text-sm text-foreground">Limitar quantidade de escolhas</span>
+                      </label>
+
+                      {newStep.maxSelectionsEnabled && (
+                        <div>
+                          <label className="text-xs text-muted-foreground">Máximo de itens que podem ser selecionados</label>
+                          <input
+                            type="number"
+                            value={newStep.maxSelections || 3}
+                            onChange={(e) => setNewStep({
+                              ...newStep,
+                              maxSelections: parseInt(e.target.value) || 1
+                            })}
+                            className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
+                            min="1"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Cliente poderá selecionar no máximo {newStep.maxSelections || 3} item(s)
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
-            </div>
-          )}
 
           <div className="flex gap-2">
             <button
@@ -1143,6 +1191,48 @@ export const CheckoutStepsManager = ({
                                   `${editingStep.pricingRule?.freeItemsLimit || 0} item(s) grátis, depois R$ ${(editingStep.pricingRule?.pricePerItem || 0).toFixed(2).replace(".", ",")} cada`}
                                 {editingStep.pricingRule?.ruleType === "flat_after_limit" && 
                                   `${editingStep.pricingRule?.freeItemsLimit || 0} item(s) grátis, depois R$ ${(editingStep.pricingRule?.flatPrice || 0).toFixed(2).replace(".", ",")} fixo`}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Max Selections Limit when editing */}
+                      {editingStep.multiSelect && (
+                        <div className="mt-4 p-3 rounded-lg bg-background border border-border space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Ban className="w-4 h-4 text-brand-pink" />
+                            <label className="text-sm font-medium text-foreground">Limite de seleções</label>
+                          </div>
+
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editingStep.maxSelectionsEnabled || false}
+                              onChange={(e) => setEditingStep({
+                                ...editingStep,
+                                maxSelectionsEnabled: e.target.checked
+                              })}
+                              className="w-4 h-4 rounded border-border"
+                            />
+                            <span className="text-sm text-foreground">Limitar quantidade de escolhas</span>
+                          </label>
+
+                          {editingStep.maxSelectionsEnabled && (
+                            <div>
+                              <label className="text-xs text-muted-foreground">Máximo de itens que podem ser selecionados</label>
+                              <input
+                                type="number"
+                                value={editingStep.maxSelections || 3}
+                                onChange={(e) => setEditingStep({
+                                  ...editingStep,
+                                  maxSelections: parseInt(e.target.value) || 1
+                                })}
+                                className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
+                                min="1"
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Cliente poderá selecionar no máximo {editingStep.maxSelections || 3} item(s)
                               </p>
                             </div>
                           )}
