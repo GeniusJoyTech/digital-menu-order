@@ -7,9 +7,17 @@ export interface CustomFont {
   url: string;
 }
 
+export interface SocialLink {
+  platform: string;
+  url: string;
+  icon: string;
+}
+
 export interface DesignConfig {
   logo: string;
   storeName: string;
+  storeDescription: string;
+  socialLinks: SocialLink[];
   primaryColor: string; // HSL values like "340 75% 65%"
   backgroundColor: string;
   cardBackground: string;
@@ -23,6 +31,8 @@ export interface DesignConfig {
 const defaultDesign: DesignConfig = {
   logo: "",
   storeName: "Shake Yes",
+  storeDescription: "Personalizamos o copo com o seu nome!",
+  socialLinks: [],
   primaryColor: "340 75% 65%",
   backgroundColor: "15 60% 95%",
   cardBackground: "0 0% 100%",

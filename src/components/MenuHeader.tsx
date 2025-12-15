@@ -26,9 +26,26 @@ const MenuHeader = () => {
               <h1 className="font-display text-3xl text-primary-foreground leading-none">
                 {design.storeName}
               </h1>
-              <p className="text-xs text-primary-foreground/80">
-                Personalizamos o copo com o seu nome!
-              </p>
+              {design.storeDescription && (
+                <p className="text-xs text-primary-foreground/80">
+                  {design.storeDescription}
+                </p>
+              )}
+              {design.socialLinks && design.socialLinks.length > 0 && (
+                <div className="flex items-center gap-2 mt-1">
+                  {design.socialLinks.map((social, index) => (
+                    <a
+                      key={index}
+                      href={social.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary-foreground/80 hover:text-primary-foreground underline"
+                    >
+                      {social.platform}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           {isTable && tableNumber && (
