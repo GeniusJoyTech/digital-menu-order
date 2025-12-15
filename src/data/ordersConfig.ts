@@ -63,3 +63,20 @@ export const deleteOrder = (orderId: string): void => {
     console.error("Error deleting order:", error);
   }
 };
+
+export const deleteOldOrders = (daysOld: number = 30): number => {
+  try {
+    const orders = loadOrders();
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+    
+    const filtered = orders.filter(o => new Date(o.createdAt) >= cutoffDate);
+    const deletedCount = orders.length - filtered.length;
+    
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    return deletedCount;
+  } catch (error) {
+    console.error("Error deleting old orders:", error);
+    return 0;
+  }
+};
