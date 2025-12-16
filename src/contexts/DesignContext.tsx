@@ -22,6 +22,10 @@ export interface DesignConfig {
   backgroundColor: string;
   cardBackground: string;
   accentColor: string;
+  borderColor: string;
+  textColor: string;
+  headingColor: string;
+  mutedTextColor: string;
   fontDisplay: string;
   fontBody: string;
   cardLayout: CardLayout;
@@ -37,6 +41,10 @@ const defaultDesign: DesignConfig = {
   backgroundColor: "15 60% 95%",
   cardBackground: "0 0% 100%",
   accentColor: "340 70% 55%",
+  borderColor: "340 30% 80%",
+  textColor: "340 30% 20%",
+  headingColor: "340 40% 25%",
+  mutedTextColor: "340 20% 50%",
   fontDisplay: "Pacifico",
   fontBody: "Poppins",
   cardLayout: "left-filled",
@@ -97,6 +105,10 @@ export const DesignProvider = ({ children }: { children: ReactNode }) => {
     root.style.setProperty("--background", design.backgroundColor);
     root.style.setProperty("--card", design.cardBackground);
     root.style.setProperty("--primary", design.accentColor);
+    root.style.setProperty("--border", design.borderColor);
+    root.style.setProperty("--foreground", design.textColor);
+    root.style.setProperty("--heading", design.headingColor);
+    root.style.setProperty("--muted-foreground", design.mutedTextColor);
 
     // Load all custom fonts first
     design.customFonts.forEach(loadCustomFont);
