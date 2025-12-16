@@ -466,7 +466,7 @@ const ItemFormModal = ({
       name: "",
       description: "",
       prices: [{ size: "500ml", price: 0 }, { size: "300ml", price: 0 }],
-      category: "tradicionais",
+      category: categories.length > 0 ? categories[0].id : "",
       image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=200&h=200&fit=crop",
     }
   );
@@ -509,6 +509,45 @@ const ItemFormModal = ({
     }
   };
 
+  const handleSave = () => {
+    if (!formData.name.trim()) {
+      toast.error("Digite o nome do item");
+      return;
+    }
+    if (categories.length === 0) {
+      toast.error("Crie uma categoria antes de adicionar itens");
+      return;
+    }
+    if (!formData.category || !categories.find(c => c.id === formData.category)) {
+      toast.error("Selecione uma categoria válida");
+      return;
+    }
+    onSave(formData);
+  };
+
+  // If no categories exist, show a message
+  if (categories.length === 0) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-foreground/50 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative bg-card rounded-2xl shadow-lg max-w-md w-full p-6 text-center">
+          <h2 className="font-display text-xl text-brand-pink mb-4">
+            Nenhuma categoria encontrada
+          </h2>
+          <p className="text-muted-foreground mb-4">
+            Você precisa criar pelo menos uma categoria antes de adicionar itens ao cardápio.
+          </p>
+          <button
+            onClick={onClose}
+            className="px-6 py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90"
+          >
+            Entendi
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-foreground/50 backdrop-blur-sm" onClick={onClose} />
@@ -524,7 +563,7 @@ const ItemFormModal = ({
 
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-foreground">Nome</label>
+            <label className="text-sm font-medium text-foreground">Nome *</label>
             <input
               type="text"
               value={formData.name}
@@ -544,7 +583,7 @@ const ItemFormModal = ({
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground">Categoria</label>
+            <label className="text-sm font-medium text-foreground">Categoria *</label>
             <select
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
@@ -650,7 +689,7 @@ const ItemFormModal = ({
               Cancelar
             </button>
             <button
-              onClick={() => onSave(formData)}
+              onClick={handleSave}
               className="flex-1 py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90"
             >
               Salvar

@@ -820,8 +820,8 @@ export const CheckoutStepsManager = ({
                     type="number"
                     value={newOptionPrice}
                     onChange={(e) => setNewOptionPrice(e.target.value)}
-                    placeholder="Preço"
-                    className="w-20 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                    placeholder="R$ 0,00"
+                    className="w-24 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
                     min="0"
                     step="0.01"
                   />
