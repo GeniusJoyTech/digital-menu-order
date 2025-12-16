@@ -28,6 +28,9 @@ export interface DesignConfig {
   mutedTextColor: string;
   fontDisplay: string;
   fontBody: string;
+  fontPrice: string;
+  fontButton: string;
+  fontNav: string;
   cardLayout: CardLayout;
   customFonts: CustomFont[];
 }
@@ -47,6 +50,9 @@ const defaultDesign: DesignConfig = {
   mutedTextColor: "340 20% 50%",
   fontDisplay: "Pacifico",
   fontBody: "Poppins",
+  fontPrice: "Poppins",
+  fontButton: "Poppins",
+  fontNav: "Poppins",
   cardLayout: "left-filled",
   customFonts: [],
 };
@@ -113,16 +119,19 @@ export const DesignProvider = ({ children }: { children: ReactNode }) => {
     // Load all custom fonts first
     design.customFonts.forEach(loadCustomFont);
 
-    // Check if selected font is a custom font and load it
-    const displayCustomFont = design.customFonts.find(f => f.name === design.fontDisplay);
-    const bodyCustomFont = design.customFonts.find(f => f.name === design.fontBody);
-    
-    if (displayCustomFont) loadCustomFont(displayCustomFont);
-    if (bodyCustomFont) loadCustomFont(bodyCustomFont);
+    // Check if selected fonts are custom fonts and load them
+    const allFonts = [design.fontDisplay, design.fontBody, design.fontPrice, design.fontButton, design.fontNav];
+    allFonts.forEach(fontName => {
+      const customFont = design.customFonts.find(f => f.name === fontName);
+      if (customFont) loadCustomFont(customFont);
+    });
 
     // Apply fonts dynamically - use proper font stack
     root.style.setProperty("--font-display", `"${design.fontDisplay}", cursive`);
     root.style.setProperty("--font-body", `"${design.fontBody}", sans-serif`);
+    root.style.setProperty("--font-price", `"${design.fontPrice || design.fontBody}", sans-serif`);
+    root.style.setProperty("--font-button", `"${design.fontButton || design.fontBody}", sans-serif`);
+    root.style.setProperty("--font-nav", `"${design.fontNav || design.fontBody}", sans-serif`);
   }, [design]);
 
   const updateDesign = (updates: Partial<DesignConfig>) => {

@@ -18,7 +18,7 @@ const CategoryNav = ({ activeCategory, onCategoryChange }: CategoryNavProps) => 
               key={category.id}
               onClick={() => onCategoryChange(category.id)}
               className={cn(
-                "px-4 py-2 rounded-full whitespace-nowrap transition-all duration-300 font-medium text-sm border-2",
+"px-4 py-2 rounded-full whitespace-nowrap transition-all duration-300 font-medium text-sm border-2 font-nav",
                 activeCategory === category.id
                   ? "bg-brand-pink text-primary-foreground border-brand-pink"
                   : "bg-card text-foreground border-border hover:border-brand-pink"

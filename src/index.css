@@ -51,6 +51,13 @@
 
     --radius: 1rem;
 
+    /* Font families */
+    --font-display: "Pacifico", cursive;
+    --font-body: "Poppins", sans-serif;
+    --font-price: "Poppins", sans-serif;
+    --font-button: "Poppins", sans-serif;
+    --font-nav: "Poppins", sans-serif;
+
     /* Custom pastel colors */
     --pastel-pink: 15 60% 93%;
     --pastel-peach: 25 70% 92%;

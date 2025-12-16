@@ -349,6 +349,51 @@ export const DesignManager = ({
               ))}
             </select>
           </div>
+
+          <div>
+            <label className="text-sm font-medium text-foreground">Fonte dos Preços</label>
+            <select
+              value={localDesign.fontPrice || localDesign.fontBody}
+              onChange={(e) => updateLocalDesign({ fontPrice: e.target.value })}
+              className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+            >
+              {getAllFonts().map((font) => (
+                <option key={font} value={font}>
+                  {font}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-foreground">Fonte dos Botões</label>
+            <select
+              value={localDesign.fontButton || localDesign.fontBody}
+              onChange={(e) => updateLocalDesign({ fontButton: e.target.value })}
+              className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+            >
+              {getAllFonts().map((font) => (
+                <option key={font} value={font}>
+                  {font}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-foreground">Fonte da Navegação</label>
+            <select
+              value={localDesign.fontNav || localDesign.fontBody}
+              onChange={(e) => updateLocalDesign({ fontNav: e.target.value })}
+              className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+            >
+              {getAllFonts().map((font) => (
+                <option key={font} value={font}>
+                  {font}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Add Custom Font */}
