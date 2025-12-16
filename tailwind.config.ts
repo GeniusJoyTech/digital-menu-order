@@ -16,6 +16,9 @@ export default {
       fontFamily: {
         display: ["var(--font-display)", "Pacifico", "cursive"],
         body: ["var(--font-body)", "Poppins", "sans-serif"],
+        price: ["var(--font-price)", "Poppins", "sans-serif"],
+        button: ["var(--font-button)", "Poppins", "sans-serif"],
+        nav: ["var(--font-nav)", "Poppins", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

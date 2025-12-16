@@ -94,7 +94,7 @@ const MenuItem = ({ item, onAddToCart, bgColor }: MenuItemProps) => {
           >
             <span className="font-semibold">{price.size}</span>{" "}
             <span className={cn(
-              "font-bold",
+              "font-bold font-price",
               selectedSize === index ? "text-brand-pink" : "text-brand-pink"
             )}>
               R${price.price.toFixed(2).replace(".", ",")}
