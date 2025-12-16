@@ -245,7 +245,7 @@ export const DesignManager = ({
         
         <div className="grid gap-4 sm:grid-cols-2">
           <ColorPicker
-            label="Cor Principal"
+            label="Cor Principal (Header)"
             hslValue={localDesign.primaryColor}
             onChange={(value) => updateLocalDesign({ primaryColor: value })}
           />
@@ -266,6 +266,30 @@ export const DesignManager = ({
             label="Cor de Destaque"
             hslValue={localDesign.accentColor}
             onChange={(value) => updateLocalDesign({ accentColor: value })}
+          />
+
+          <ColorPicker
+            label="Cor das Bordas"
+            hslValue={localDesign.borderColor || "340 30% 80%"}
+            onChange={(value) => updateLocalDesign({ borderColor: value })}
+          />
+
+          <ColorPicker
+            label="Cor do Texto Principal"
+            hslValue={localDesign.textColor || "340 30% 20%"}
+            onChange={(value) => updateLocalDesign({ textColor: value })}
+          />
+
+          <ColorPicker
+            label="Cor dos Títulos"
+            hslValue={localDesign.headingColor || "340 40% 25%"}
+            onChange={(value) => updateLocalDesign({ headingColor: value })}
+          />
+
+          <ColorPicker
+            label="Cor do Texto Secundário"
+            hslValue={localDesign.mutedTextColor || "340 20% 50%"}
+            onChange={(value) => updateLocalDesign({ mutedTextColor: value })}
           />
         </div>
       </div>
