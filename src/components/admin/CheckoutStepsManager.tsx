@@ -637,6 +637,55 @@ export const CheckoutStepsManager = ({
     );
   };
 
+  // State for step-exclusive items
+  const [newStepItemName, setNewStepItemName] = useState("");
+  const [newStepItemPrice, setNewStepItemPrice] = useState("");
+  const [newStepItemTrackStock, setNewStepItemTrackStock] = useState(false);
+
+  const addStepExclusiveItem = (isEditing: boolean) => {
+    if (!newStepItemName.trim()) {
+      toast.error("Digite um nome para o item");
+      return;
+    }
+    
+    const newItem = {
+      id: `step-item-${Date.now()}`,
+      name: newStepItemName.trim(),
+      price: parseFloat(newStepItemPrice) || 0,
+      trackStock: newStepItemTrackStock,
+    };
+    
+    if (isEditing && editingStep) {
+      setEditingStep({
+        ...editingStep,
+        options: [...(editingStep.options || []), newItem],
+      });
+    } else {
+      setNewStep({
+        ...newStep,
+        options: [...(newStep.options || []), newItem],
+      });
+    }
+    
+    setNewStepItemName("");
+    setNewStepItemPrice("");
+    setNewStepItemTrackStock(false);
+  };
+
+  const removeStepExclusiveItem = (itemId: string, isEditing: boolean) => {
+    if (isEditing && editingStep) {
+      setEditingStep({
+        ...editingStep,
+        options: editingStep.options.filter(o => o.id !== itemId),
+      });
+    } else {
+      setNewStep({
+        ...newStep,
+        options: (newStep.options || []).filter(o => o.id !== itemId),
+      });
+    }
+  };
+
   // Render linked menu items selector for both new step and editing
   const renderLinkedMenuItemsSelector = (step: CheckoutStep | null, isEditing: boolean) => {
     const currentStep = isEditing && editingStep ? editingStep : step;
@@ -646,90 +695,186 @@ export const CheckoutStepsManager = ({
         ? newStep.linkedMenuItems 
         : currentStep?.linkedMenuItems;
     
+    const stepOptions = isEditing && editingStep 
+      ? editingStep.options 
+      : !isEditing 
+        ? newStep.options 
+        : currentStep?.options;
+    
     return (
-      <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
-        <div className="flex items-center gap-2">
-          <Package className="w-4 h-4 text-brand-pink" />
-          <label className="text-sm font-medium text-foreground">Itens do cardápio vinculados</label>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Selecione itens do cardápio para vincular a esta etapa. Itens marcados como "Excluir do estoque" não aparecerão no controle de estoque.
-        </p>
-        
-        <div className="max-h-64 overflow-y-auto space-y-1">
-          {menuItems.map((item) => {
-            const linkedItem = (linkedItems || []).find(l => l.itemId === item.id);
-            const isLinked = !!linkedItem;
-            
-            return (
-              <div
-                key={item.id}
-                className={cn(
-                  "flex items-center gap-2 p-2 rounded-lg transition-colors",
-                  isLinked ? "bg-brand-pink/10 border border-brand-pink/30" : "hover:bg-background"
-                )}
-              >
-                <input
-                  type="checkbox"
-                  checked={isLinked}
-                  onChange={() => {
-                    if (isEditing && editingStep) {
-                      toggleLinkedMenuItem(editingStep, item.id, true);
-                    } else if (!isEditing) {
-                      const currentLinked = newStep.linkedMenuItems || [];
-                      const existingIndex = currentLinked.findIndex(l => l.itemId === item.id);
-                      if (existingIndex >= 0) {
-                        setNewStep({ ...newStep, linkedMenuItems: currentLinked.filter(l => l.itemId !== item.id) });
-                      } else {
-                        setNewStep({ ...newStep, linkedMenuItems: [...currentLinked, { itemId: item.id, excludeFromStock: true }] });
-                      }
-                    }
-                  }}
-                  className="w-4 h-4 rounded border-border"
-                />
-                <span className="text-sm text-foreground flex-1">{item.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {categories.find(c => c.id === item.category)?.name || item.category}
-                </span>
+      <div className="space-y-4">
+        {/* Menu items section */}
+        <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-brand-pink" />
+            <label className="text-sm font-medium text-foreground">Itens do cardápio vinculados</label>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Selecione itens do cardápio para vincular a esta etapa. Itens marcados como "Excluir do estoque" não aparecerão no controle de estoque.
+          </p>
+          
+          <div className="max-h-48 overflow-y-auto space-y-1">
+            {menuItems.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic p-2">Nenhum item no cardápio</p>
+            ) : (
+              menuItems.map((item) => {
+                const linkedItem = (linkedItems || []).find(l => l.itemId === item.id);
+                const isLinked = !!linkedItem;
                 
-                {isLinked && (
-                  <label className="flex items-center gap-1 ml-2 cursor-pointer">
+                return (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "flex items-center gap-2 p-2 rounded-lg transition-colors",
+                      isLinked ? "bg-brand-pink/10 border border-brand-pink/30" : "hover:bg-background"
+                    )}
+                  >
                     <input
                       type="checkbox"
-                      checked={linkedItem?.excludeFromStock ?? true}
+                      checked={isLinked}
                       onChange={() => {
                         if (isEditing && editingStep) {
-                          toggleExcludeFromStock(editingStep, item.id, true);
+                          toggleLinkedMenuItem(editingStep, item.id, true);
                         } else if (!isEditing) {
                           const currentLinked = newStep.linkedMenuItems || [];
-                          setNewStep({
-                            ...newStep,
-                            linkedMenuItems: currentLinked.map(l => 
-                              l.itemId === item.id ? { ...l, excludeFromStock: !l.excludeFromStock } : l
-                            )
-                          });
+                          const existingIndex = currentLinked.findIndex(l => l.itemId === item.id);
+                          if (existingIndex >= 0) {
+                            setNewStep({ ...newStep, linkedMenuItems: currentLinked.filter(l => l.itemId !== item.id) });
+                          } else {
+                            setNewStep({ ...newStep, linkedMenuItems: [...currentLinked, { itemId: item.id, excludeFromStock: true }] });
+                          }
                         }
                       }}
-                      className="w-3 h-3 rounded border-border"
+                      className="w-4 h-4 rounded border-border"
                     />
-                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">Excluir do estoque</span>
-                  </label>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        
-        {(linkedItems || []).length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            <p className="text-xs text-brand-pink">
-              {(linkedItems || []).length} item(s) vinculado(s)
-            </p>
-            <span className="text-xs text-muted-foreground">
-              • {(linkedItems || []).filter(l => l.excludeFromStock).length} excluído(s) do estoque
-            </span>
+                    <span className="text-sm text-foreground flex-1">{item.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {categories.find(c => c.id === item.category)?.name || item.category}
+                    </span>
+                    
+                    {isLinked && (
+                      <label className="flex items-center gap-1 ml-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={linkedItem?.excludeFromStock ?? true}
+                          onChange={() => {
+                            if (isEditing && editingStep) {
+                              toggleExcludeFromStock(editingStep, item.id, true);
+                            } else if (!isEditing) {
+                              const currentLinked = newStep.linkedMenuItems || [];
+                              setNewStep({
+                                ...newStep,
+                                linkedMenuItems: currentLinked.map(l => 
+                                  l.itemId === item.id ? { ...l, excludeFromStock: !l.excludeFromStock } : l
+                                )
+                              });
+                            }
+                          }}
+                          className="w-3 h-3 rounded border-border"
+                        />
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">Excluir do estoque</span>
+                      </label>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
-        )}
+          
+          {(linkedItems || []).length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              <p className="text-xs text-brand-pink">
+                {(linkedItems || []).length} item(s) vinculado(s)
+              </p>
+              <span className="text-xs text-muted-foreground">
+                • {(linkedItems || []).filter(l => l.excludeFromStock).length} excluído(s) do estoque
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Step-exclusive items section */}
+        <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
+          <div className="flex items-center gap-2">
+            <Plus className="w-4 h-4 text-brand-pink" />
+            <label className="text-sm font-medium text-foreground">Itens exclusivos da etapa</label>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Adicione itens que existem apenas nesta etapa (não estão no cardápio).
+          </p>
+          
+          {/* Existing step items */}
+          {(stepOptions || []).length > 0 && (
+            <div className="space-y-2">
+              {(stepOptions || []).map((option) => (
+                <div key={option.id} className="flex items-center justify-between p-2 rounded-lg bg-background">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-foreground">{option.name}</span>
+                    {option.trackStock && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand-pink/20 text-brand-pink">Estoque</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {option.price > 0 && (
+                      <span className="text-xs text-brand-pink">
+                        +R$ {option.price.toFixed(2).replace(".", ",")}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => removeStepExclusiveItem(option.id, isEditing)}
+                      className="p-1 rounded text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Add new step item form */}
+          <div className="space-y-2 pt-2 border-t border-border">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newStepItemName}
+                onChange={(e) => setNewStepItemName(e.target.value)}
+                placeholder="Nome do item"
+                className="flex-1 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+              />
+              <input
+                type="number"
+                value={newStepItemPrice}
+                onChange={(e) => setNewStepItemPrice(e.target.value)}
+                placeholder="R$ 0,00"
+                className="w-24 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                min="0"
+                step="0.01"
+              />
+              <button
+                onClick={() => addStepExclusiveItem(isEditing)}
+                className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={newStepItemTrackStock}
+                onChange={(e) => setNewStepItemTrackStock(e.target.checked)}
+                className="w-4 h-4 rounded border-border"
+              />
+              <span className="text-xs text-muted-foreground">Item de estoque (aparece na aba Estoque)</span>
+            </label>
+          </div>
+          
+          {(stepOptions || []).length > 0 && (
+            <p className="text-xs text-brand-pink">
+              {(stepOptions || []).length} item(s) exclusivo(s)
+            </p>
+          )}
+        </div>
       </div>
     );
   };
@@ -865,268 +1010,147 @@ export const CheckoutStepsManager = ({
           {/* Linked menu items */}
           {renderLinkedMenuItemsSelector(null, false)}
 
-          {/* Options for custom_select */}
-          {newStep.type === "custom_select" && (
-            <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
-              <label className="text-sm font-medium text-foreground">Opções da etapa</label>
-              
-              {(newStep.options || []).length > 0 && (
-                <div className="space-y-2">
-                  {(newStep.options || []).map((option) => (
-                    <div key={option.id}>
-                      {editingOptionId === option.id ? (
-                        <div className="p-2 rounded-lg bg-background space-y-2">
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={editOptionName}
-                              onChange={(e) => setEditOptionName(e.target.value)}
-                              className="flex-1 p-2 rounded-lg border border-border bg-card text-foreground text-sm"
-                            />
-                            <input
-                              type="number"
-                              value={editOptionPrice}
-                              onChange={(e) => setEditOptionPrice(e.target.value)}
-                              className="w-20 p-2 rounded-lg border border-border bg-card text-foreground text-sm"
-                              min="0"
-                              step="0.01"
-                            />
-                            <button
-                              onClick={() => saveEditingOption(false)}
-                              className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
-                            >
-                              <Save className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={cancelEditingOption}
-                              className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={editOptionTrackStock}
-                              onChange={(e) => setEditOptionTrackStock(e.target.checked)}
-                              className="w-4 h-4 rounded border-border"
-                            />
-                            <span className="text-xs text-muted-foreground">Item de estoque</span>
-                          </label>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between p-2 rounded-lg bg-background">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-foreground">{option.name}</span>
-                            {option.trackStock && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand-pink/20 text-brand-pink">Estoque</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {option.price > 0 && (
-                              <span className="text-xs text-brand-pink">
-                                +R$ {option.price.toFixed(2).replace(".", ",")}
-                              </span>
-                            )}
-                            <button
-                              onClick={() => startEditingOption(option)}
-                              className="p-1 rounded text-muted-foreground hover:bg-muted"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => removeOptionFromStep(option.id, false)}
-                              className="p-1 rounded text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newOptionName}
-                    onChange={(e) => setNewOptionName(e.target.value)}
-                    placeholder="Nome da opção"
-                    className="flex-1 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
-                  />
-                  <input
-                    type="number"
-                    value={newOptionPrice}
-                    onChange={(e) => setNewOptionPrice(e.target.value)}
-                    placeholder="R$ 0,00"
-                    className="w-24 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
-                    min="0"
-                    step="0.01"
-                  />
-                  <button
-                    onClick={() => addOptionToStep({} as CheckoutStep, false)}
-                    className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newOptionTrackStock}
-                    onChange={(e) => setNewOptionTrackStock(e.target.checked)}
-                    className="w-4 h-4 rounded border-border"
-                  />
-                  <span className="text-xs text-muted-foreground">Item de estoque (aparece na aba Estoque)</span>
-                </label>
+          {/* Pricing Rules - only for multiSelect */}
+          {newStep.multiSelect && (
+            <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-3">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-brand-pink" />
+                <label className="text-sm font-medium text-foreground">Regras de preço</label>
               </div>
 
-              {/* Pricing Rules */}
-              {newStep.multiSelect && (
-                <div className="mt-4 p-3 rounded-lg bg-background border border-border space-y-3">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-brand-pink" />
-                    <label className="text-sm font-medium text-foreground">Regras de preço</label>
-                  </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newStep.pricingRule?.enabled || false}
+                  onChange={(e) => setNewStep({
+                    ...newStep,
+                    pricingRule: { ...(newStep.pricingRule || defaultPricingRule), enabled: e.target.checked }
+                  })}
+                  className="w-4 h-4 rounded border-border"
+                />
+                <span className="text-sm text-foreground">Usar regra de preço personalizada</span>
+              </label>
 
-                  <label className="flex items-center gap-2 cursor-pointer">
+              {newStep.pricingRule?.enabled && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Itens grátis (antes de cobrar)</label>
                     <input
-                      type="checkbox"
-                      checked={newStep.pricingRule?.enabled || false}
+                      type="number"
+                      value={newStep.pricingRule?.freeItemsLimit || 0}
                       onChange={(e) => setNewStep({
                         ...newStep,
-                        pricingRule: { ...(newStep.pricingRule || defaultPricingRule), enabled: e.target.checked }
+                        pricingRule: { ...(newStep.pricingRule || defaultPricingRule), freeItemsLimit: parseInt(e.target.value) || 0 }
                       })}
-                      className="w-4 h-4 rounded border-border"
+                      className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
+                      min="0"
                     />
-                    <span className="text-sm text-foreground">Usar regra de preço personalizada</span>
-                  </label>
+                  </div>
 
-                  {newStep.pricingRule?.enabled && (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs text-muted-foreground">Itens grátis (antes de cobrar)</label>
-                        <input
-                          type="number"
-                          value={newStep.pricingRule?.freeItemsLimit || 0}
-                          onChange={(e) => setNewStep({
-                            ...newStep,
-                            pricingRule: { ...(newStep.pricingRule || defaultPricingRule), freeItemsLimit: parseInt(e.target.value) || 0 }
-                          })}
-                          className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
-                          min="0"
-                        />
-                      </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Tipo de cobrança</label>
+                    <select
+                      value={newStep.pricingRule?.ruleType || "per_item"}
+                      onChange={(e) => setNewStep({
+                        ...newStep,
+                        pricingRule: { ...(newStep.pricingRule || defaultPricingRule), ruleType: e.target.value as any }
+                      })}
+                      className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
+                    >
+                      <option value="per_item">Cobrar por cada item selecionado</option>
+                      <option value="per_item_after_limit">Cobrar por item após limite grátis</option>
+                      <option value="flat_after_limit">Valor fixo após limite grátis</option>
+                    </select>
+                  </div>
 
-                      <div>
-                        <label className="text-xs text-muted-foreground">Tipo de cobrança</label>
-                        <select
-                          value={newStep.pricingRule?.ruleType || "per_item"}
-                          onChange={(e) => setNewStep({
-                            ...newStep,
-                            pricingRule: { ...(newStep.pricingRule || defaultPricingRule), ruleType: e.target.value as any }
-                          })}
-                          className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
-                        >
-                          <option value="per_item">Cobrar por cada item selecionado</option>
-                          <option value="per_item_after_limit">Cobrar por item após limite grátis</option>
-                          <option value="flat_after_limit">Valor fixo após limite grátis</option>
-                        </select>
-                      </div>
-
-                      {(newStep.pricingRule?.ruleType === "per_item" || newStep.pricingRule?.ruleType === "per_item_after_limit") && (
-                        <div>
-                          <label className="text-xs text-muted-foreground">Preço por item (R$)</label>
-                          <input
-                            type="number"
-                            value={newStep.pricingRule?.pricePerItem || 0}
-                            onChange={(e) => setNewStep({
-                              ...newStep,
-                              pricingRule: { ...(newStep.pricingRule || defaultPricingRule), pricePerItem: parseFloat(e.target.value) || 0 }
-                            })}
-                            className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                      )}
-
-                      {newStep.pricingRule?.ruleType === "flat_after_limit" && (
-                        <div>
-                          <label className="text-xs text-muted-foreground">Valor fixo após limite (R$)</label>
-                          <input
-                            type="number"
-                            value={newStep.pricingRule?.flatPrice || 0}
-                            onChange={(e) => setNewStep({
-                              ...newStep,
-                              pricingRule: { ...(newStep.pricingRule || defaultPricingRule), flatPrice: parseFloat(e.target.value) || 0 }
-                            })}
-                            className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                      )}
-
-                      <p className="text-xs text-muted-foreground">
-                        {newStep.pricingRule?.ruleType === "per_item" && 
-                          `Cada item custa R$ ${(newStep.pricingRule?.pricePerItem || 0).toFixed(2).replace(".", ",")}`}
-                        {newStep.pricingRule?.ruleType === "per_item_after_limit" && 
-                          `${newStep.pricingRule?.freeItemsLimit || 0} item(s) grátis, depois R$ ${(newStep.pricingRule?.pricePerItem || 0).toFixed(2).replace(".", ",")} cada`}
-                        {newStep.pricingRule?.ruleType === "flat_after_limit" && 
-                          `${newStep.pricingRule?.freeItemsLimit || 0} item(s) grátis, depois R$ ${(newStep.pricingRule?.flatPrice || 0).toFixed(2).replace(".", ",")} fixo`}
-                      </p>
-                    </div>
-                      )}
+                  {(newStep.pricingRule?.ruleType === "per_item" || newStep.pricingRule?.ruleType === "per_item_after_limit") && (
+                    <div>
+                      <label className="text-xs text-muted-foreground">Preço por item (R$)</label>
+                      <input
+                        type="number"
+                        value={newStep.pricingRule?.pricePerItem || 0}
+                        onChange={(e) => setNewStep({
+                          ...newStep,
+                          pricingRule: { ...(newStep.pricingRule || defaultPricingRule), pricePerItem: parseFloat(e.target.value) || 0 }
+                        })}
+                        className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
+                        min="0"
+                        step="0.01"
+                      />
                     </div>
                   )}
 
-                  {/* Max Selections Limit */}
-                  {newStep.multiSelect && (
-                    <div className="mt-4 p-3 rounded-lg bg-background border border-border space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Ban className="w-4 h-4 text-brand-pink" />
-                        <label className="text-sm font-medium text-foreground">Limite de seleções</label>
-                      </div>
-
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={newStep.maxSelectionsEnabled || false}
-                          onChange={(e) => setNewStep({
-                            ...newStep,
-                            maxSelectionsEnabled: e.target.checked
-                          })}
-                          className="w-4 h-4 rounded border-border"
-                        />
-                        <span className="text-sm text-foreground">Limitar quantidade de escolhas</span>
-                      </label>
-
-                      {newStep.maxSelectionsEnabled && (
-                        <div>
-                          <label className="text-xs text-muted-foreground">Máximo de itens que podem ser selecionados</label>
-                          <input
-                            type="number"
-                            value={newStep.maxSelections || 3}
-                            onChange={(e) => setNewStep({
-                              ...newStep,
-                              maxSelections: parseInt(e.target.value) || 1
-                            })}
-                            className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
-                            min="1"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Cliente poderá selecionar no máximo {newStep.maxSelections || 3} item(s)
-                          </p>
-                        </div>
-                      )}
+                  {newStep.pricingRule?.ruleType === "flat_after_limit" && (
+                    <div>
+                      <label className="text-xs text-muted-foreground">Valor fixo após limite (R$)</label>
+                      <input
+                        type="number"
+                        value={newStep.pricingRule?.flatPrice || 0}
+                        onChange={(e) => setNewStep({
+                          ...newStep,
+                          pricingRule: { ...(newStep.pricingRule || defaultPricingRule), flatPrice: parseFloat(e.target.value) || 0 }
+                        })}
+                        className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
+                        min="0"
+                        step="0.01"
+                      />
                     </div>
                   )}
+
+                  <p className="text-xs text-muted-foreground">
+                    {newStep.pricingRule?.ruleType === "per_item" && 
+                      `Cada item custa R$ ${(newStep.pricingRule?.pricePerItem || 0).toFixed(2).replace(".", ",")}`}
+                    {newStep.pricingRule?.ruleType === "per_item_after_limit" && 
+                      `${newStep.pricingRule?.freeItemsLimit || 0} item(s) grátis, depois R$ ${(newStep.pricingRule?.pricePerItem || 0).toFixed(2).replace(".", ",")} cada`}
+                    {newStep.pricingRule?.ruleType === "flat_after_limit" && 
+                      `${newStep.pricingRule?.freeItemsLimit || 0} item(s) grátis, depois R$ ${(newStep.pricingRule?.flatPrice || 0).toFixed(2).replace(".", ",")} fixo`}
+                  </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Max Selections Limit */}
+          {newStep.multiSelect && (
+            <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-3">
+              <div className="flex items-center gap-2">
+                <Ban className="w-4 h-4 text-brand-pink" />
+                <label className="text-sm font-medium text-foreground">Limite de seleções</label>
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newStep.maxSelectionsEnabled || false}
+                  onChange={(e) => setNewStep({
+                    ...newStep,
+                    maxSelectionsEnabled: e.target.checked
+                  })}
+                  className="w-4 h-4 rounded border-border"
+                />
+                <span className="text-sm text-foreground">Limitar quantidade de escolhas</span>
+              </label>
+
+              {newStep.maxSelectionsEnabled && (
+                <div>
+                  <label className="text-xs text-muted-foreground">Máximo de itens que podem ser selecionados</label>
+                  <input
+                    type="number"
+                    value={newStep.maxSelections || 3}
+                    onChange={(e) => setNewStep({
+                      ...newStep,
+                      maxSelections: parseInt(e.target.value) || 1
+                    })}
+                    className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
+                    min="1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Cliente poderá selecionar no máximo {newStep.maxSelections || 3} item(s)
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-2">
             <button
@@ -1213,264 +1237,143 @@ export const CheckoutStepsManager = ({
                   {/* Linked menu items */}
                   {renderLinkedMenuItemsSelector(editingStep, true)}
 
-                  {/* Options for custom_select when editing */}
-                  {editingStep.type === "custom_select" && (
-                    <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
-                      <label className="text-sm font-medium text-foreground">Opções da etapa</label>
-                      
-                      {editingStep.options.length > 0 && (
-                        <div className="space-y-2">
-                          {editingStep.options.map((option) => (
-                            <div key={option.id}>
-                              {editingOptionId === option.id ? (
-                                <div className="p-2 rounded-lg bg-background space-y-2">
-                                  <div className="flex gap-2">
-                                    <input
-                                      type="text"
-                                      value={editOptionName}
-                                      onChange={(e) => setEditOptionName(e.target.value)}
-                                      className="flex-1 p-2 rounded-lg border border-border bg-card text-foreground text-sm"
-                                    />
-                                    <input
-                                      type="number"
-                                      value={editOptionPrice}
-                                      onChange={(e) => setEditOptionPrice(e.target.value)}
-                                      className="w-20 p-2 rounded-lg border border-border bg-card text-foreground text-sm"
-                                      min="0"
-                                      step="0.01"
-                                    />
-                                    <button
-                                      onClick={() => saveEditingOption(true)}
-                                      className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
-                                    >
-                                      <Save className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      onClick={cancelEditingOption}
-                                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                  <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={editOptionTrackStock}
-                                      onChange={(e) => setEditOptionTrackStock(e.target.checked)}
-                                      className="w-4 h-4 rounded border-border"
-                                    />
-                                    <span className="text-xs text-muted-foreground">Item de estoque</span>
-                                  </label>
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-between p-2 rounded-lg bg-background">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm text-foreground">{option.name}</span>
-                                    {option.trackStock && (
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand-pink/20 text-brand-pink">Estoque</span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {option.price > 0 && (
-                                      <span className="text-xs text-brand-pink">
-                                        +R$ {option.price.toFixed(2).replace(".", ",")}
-                                      </span>
-                                    )}
-                                    <button
-                                      onClick={() => startEditingOption(option)}
-                                      className="p-1 rounded text-muted-foreground hover:bg-muted"
-                                    >
-                                      <Edit2 className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      onClick={() => removeOptionFromStep(option.id, true)}
-                                      className="p-1 rounded text-destructive hover:bg-destructive/10"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      <div className="space-y-2">
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={newOptionName}
-                            onChange={(e) => setNewOptionName(e.target.value)}
-                            placeholder="Nome da opção"
-                            className="flex-1 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
-                          />
-                          <input
-                            type="number"
-                            value={newOptionPrice}
-                            onChange={(e) => setNewOptionPrice(e.target.value)}
-                            placeholder="Preço"
-                            className="w-20 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
-                            min="0"
-                            step="0.01"
-                          />
-                          <button
-                            onClick={() => addOptionToStep(editingStep, true)}
-                            className="p-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={newOptionTrackStock}
-                            onChange={(e) => setNewOptionTrackStock(e.target.checked)}
-                            className="w-4 h-4 rounded border-border"
-                          />
-                          <span className="text-xs text-muted-foreground">Item de estoque (aparece na aba Estoque)</span>
-                        </label>
+                  {/* Pricing Rules when editing */}
+                  {editingStep.multiSelect && (
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-3">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-brand-pink" />
+                        <label className="text-sm font-medium text-foreground">Regras de preço</label>
                       </div>
 
-                      {/* Pricing Rules when editing */}
-                      {editingStep.multiSelect && (
-                        <div className="mt-4 p-3 rounded-lg bg-background border border-border space-y-3">
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="w-4 h-4 text-brand-pink" />
-                            <label className="text-sm font-medium text-foreground">Regras de preço</label>
-                          </div>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingStep.pricingRule?.enabled || false}
+                          onChange={(e) => setEditingStep({
+                            ...editingStep,
+                            pricingRule: { ...(editingStep.pricingRule || defaultPricingRule), enabled: e.target.checked }
+                          })}
+                          className="w-4 h-4 rounded border-border"
+                        />
+                        <span className="text-sm text-foreground">Usar regra de preço personalizada</span>
+                      </label>
 
-                          <label className="flex items-center gap-2 cursor-pointer">
+                      {editingStep.pricingRule?.enabled && (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Itens grátis (antes de cobrar)</label>
                             <input
-                              type="checkbox"
-                              checked={editingStep.pricingRule?.enabled || false}
+                              type="number"
+                              value={editingStep.pricingRule?.freeItemsLimit || 0}
                               onChange={(e) => setEditingStep({
                                 ...editingStep,
-                                pricingRule: { ...(editingStep.pricingRule || defaultPricingRule), enabled: e.target.checked }
+                                pricingRule: { ...(editingStep.pricingRule || defaultPricingRule), freeItemsLimit: parseInt(e.target.value) || 0 }
                               })}
-                              className="w-4 h-4 rounded border-border"
+                              className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
+                              min="0"
                             />
-                            <span className="text-sm text-foreground">Usar regra de preço personalizada</span>
-                          </label>
-
-                          {editingStep.pricingRule?.enabled && (
-                            <div className="space-y-3">
-                              <div>
-                                <label className="text-xs text-muted-foreground">Itens grátis (antes de cobrar)</label>
-                                <input
-                                  type="number"
-                                  value={editingStep.pricingRule?.freeItemsLimit || 0}
-                                  onChange={(e) => setEditingStep({
-                                    ...editingStep,
-                                    pricingRule: { ...(editingStep.pricingRule || defaultPricingRule), freeItemsLimit: parseInt(e.target.value) || 0 }
-                                  })}
-                                  className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
-                                  min="0"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="text-xs text-muted-foreground">Tipo de cobrança</label>
-                                <select
-                                  value={editingStep.pricingRule?.ruleType || "per_item"}
-                                  onChange={(e) => setEditingStep({
-                                    ...editingStep,
-                                    pricingRule: { ...(editingStep.pricingRule || defaultPricingRule), ruleType: e.target.value as any }
-                                  })}
-                                  className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
-                                >
-                                  <option value="per_item">Cobrar por cada item selecionado</option>
-                                  <option value="per_item_after_limit">Cobrar por item após limite grátis</option>
-                                  <option value="flat_after_limit">Valor fixo após limite grátis</option>
-                                </select>
-                              </div>
-
-                              {(editingStep.pricingRule?.ruleType === "per_item" || editingStep.pricingRule?.ruleType === "per_item_after_limit") && (
-                                <div>
-                                  <label className="text-xs text-muted-foreground">Preço por item (R$)</label>
-                                  <input
-                                    type="number"
-                                    value={editingStep.pricingRule?.pricePerItem || 0}
-                                    onChange={(e) => setEditingStep({
-                                      ...editingStep,
-                                      pricingRule: { ...(editingStep.pricingRule || defaultPricingRule), pricePerItem: parseFloat(e.target.value) || 0 }
-                                    })}
-                                    className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
-                                    min="0"
-                                    step="0.01"
-                                  />
-                                </div>
-                              )}
-
-                              {editingStep.pricingRule?.ruleType === "flat_after_limit" && (
-                                <div>
-                                  <label className="text-xs text-muted-foreground">Valor fixo após limite (R$)</label>
-                                  <input
-                                    type="number"
-                                    value={editingStep.pricingRule?.flatPrice || 0}
-                                    onChange={(e) => setEditingStep({
-                                      ...editingStep,
-                                      pricingRule: { ...(editingStep.pricingRule || defaultPricingRule), flatPrice: parseFloat(e.target.value) || 0 }
-                                    })}
-                                    className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
-                                    min="0"
-                                    step="0.01"
-                                  />
-                                </div>
-                              )}
-
-                              <p className="text-xs text-muted-foreground">
-                                {editingStep.pricingRule?.ruleType === "per_item" && 
-                                  `Cada item custa R$ ${(editingStep.pricingRule?.pricePerItem || 0).toFixed(2).replace(".", ",")}`}
-                                {editingStep.pricingRule?.ruleType === "per_item_after_limit" && 
-                                  `${editingStep.pricingRule?.freeItemsLimit || 0} item(s) grátis, depois R$ ${(editingStep.pricingRule?.pricePerItem || 0).toFixed(2).replace(".", ",")} cada`}
-                                {editingStep.pricingRule?.ruleType === "flat_after_limit" && 
-                                  `${editingStep.pricingRule?.freeItemsLimit || 0} item(s) grátis, depois R$ ${(editingStep.pricingRule?.flatPrice || 0).toFixed(2).replace(".", ",")} fixo`}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Max Selections Limit when editing */}
-                      {editingStep.multiSelect && (
-                        <div className="mt-4 p-3 rounded-lg bg-background border border-border space-y-3">
-                          <div className="flex items-center gap-2">
-                            <Ban className="w-4 h-4 text-brand-pink" />
-                            <label className="text-sm font-medium text-foreground">Limite de seleções</label>
                           </div>
 
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={editingStep.maxSelectionsEnabled || false}
+                          <div>
+                            <label className="text-xs text-muted-foreground">Tipo de cobrança</label>
+                            <select
+                              value={editingStep.pricingRule?.ruleType || "per_item"}
                               onChange={(e) => setEditingStep({
                                 ...editingStep,
-                                maxSelectionsEnabled: e.target.checked
+                                pricingRule: { ...(editingStep.pricingRule || defaultPricingRule), ruleType: e.target.value as any }
                               })}
-                              className="w-4 h-4 rounded border-border"
-                            />
-                            <span className="text-sm text-foreground">Limitar quantidade de escolhas</span>
-                          </label>
+                              className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
+                            >
+                              <option value="per_item">Cobrar por cada item selecionado</option>
+                              <option value="per_item_after_limit">Cobrar por item após limite grátis</option>
+                              <option value="flat_after_limit">Valor fixo após limite grátis</option>
+                            </select>
+                          </div>
 
-                          {editingStep.maxSelectionsEnabled && (
+                          {(editingStep.pricingRule?.ruleType === "per_item" || editingStep.pricingRule?.ruleType === "per_item_after_limit") && (
                             <div>
-                              <label className="text-xs text-muted-foreground">Máximo de itens que podem ser selecionados</label>
+                              <label className="text-xs text-muted-foreground">Preço por item (R$)</label>
                               <input
                                 type="number"
-                                value={editingStep.maxSelections || 3}
+                                value={editingStep.pricingRule?.pricePerItem || 0}
                                 onChange={(e) => setEditingStep({
                                   ...editingStep,
-                                  maxSelections: parseInt(e.target.value) || 1
+                                  pricingRule: { ...(editingStep.pricingRule || defaultPricingRule), pricePerItem: parseFloat(e.target.value) || 0 }
                                 })}
                                 className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
-                                min="1"
+                                min="0"
+                                step="0.01"
                               />
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Cliente poderá selecionar no máximo {editingStep.maxSelections || 3} item(s)
-                              </p>
                             </div>
                           )}
+
+                          {editingStep.pricingRule?.ruleType === "flat_after_limit" && (
+                            <div>
+                              <label className="text-xs text-muted-foreground">Valor fixo após limite (R$)</label>
+                              <input
+                                type="number"
+                                value={editingStep.pricingRule?.flatPrice || 0}
+                                onChange={(e) => setEditingStep({
+                                  ...editingStep,
+                                  pricingRule: { ...(editingStep.pricingRule || defaultPricingRule), flatPrice: parseFloat(e.target.value) || 0 }
+                                })}
+                                className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
+                                min="0"
+                                step="0.01"
+                              />
+                            </div>
+                          )}
+
+                          <p className="text-xs text-muted-foreground">
+                            {editingStep.pricingRule?.ruleType === "per_item" && 
+                              `Cada item custa R$ ${(editingStep.pricingRule?.pricePerItem || 0).toFixed(2).replace(".", ",")}`}
+                            {editingStep.pricingRule?.ruleType === "per_item_after_limit" && 
+                              `${editingStep.pricingRule?.freeItemsLimit || 0} item(s) grátis, depois R$ ${(editingStep.pricingRule?.pricePerItem || 0).toFixed(2).replace(".", ",")} cada`}
+                            {editingStep.pricingRule?.ruleType === "flat_after_limit" && 
+                              `${editingStep.pricingRule?.freeItemsLimit || 0} item(s) grátis, depois R$ ${(editingStep.pricingRule?.flatPrice || 0).toFixed(2).replace(".", ",")} fixo`}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Max Selections Limit when editing */}
+                  {editingStep.multiSelect && (
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Ban className="w-4 h-4 text-brand-pink" />
+                        <label className="text-sm font-medium text-foreground">Limite de seleções</label>
+                      </div>
+
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingStep.maxSelectionsEnabled || false}
+                          onChange={(e) => setEditingStep({
+                            ...editingStep,
+                            maxSelectionsEnabled: e.target.checked
+                          })}
+                          className="w-4 h-4 rounded border-border"
+                        />
+                        <span className="text-sm text-foreground">Limitar quantidade de escolhas</span>
+                      </label>
+
+                      {editingStep.maxSelectionsEnabled && (
+                        <div>
+                          <label className="text-xs text-muted-foreground">Máximo de itens que podem ser selecionados</label>
+                          <input
+                            type="number"
+                            value={editingStep.maxSelections || 3}
+                            onChange={(e) => setEditingStep({
+                              ...editingStep,
+                              maxSelections: parseInt(e.target.value) || 1
+                            })}
+                            className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm mt-1"
+                            min="1"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Cliente poderá selecionar no máximo {editingStep.maxSelections || 3} item(s)
+                          </p>
                         </div>
                       )}
                     </div>
