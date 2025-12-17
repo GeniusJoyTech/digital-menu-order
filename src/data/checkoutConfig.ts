@@ -106,14 +106,81 @@ export interface CheckoutConfig {
   steps: CheckoutStep[];
 }
 
+const defaultStepsById = new Map(defaultCheckoutSteps.map((s) => [s.id, s] as const));
+
+const normalizeOption = (o: any): CheckoutStepOption => ({
+  id: String(o?.id ?? ""),
+  name: String(o?.name ?? ""),
+  price: typeof o?.price === "number" ? o.price : parseFloat(o?.price) || 0,
+  stock: o?.stock === undefined || o?.stock === null ? undefined : (typeof o.stock === "number" ? o.stock : parseInt(o.stock) || 0),
+  trackStock: Boolean(o?.trackStock),
+});
+
+const normalizeStep = (s: any): CheckoutStep => {
+  const fallback = defaultStepsById.get(String(s?.id ?? ""));
+  const base: CheckoutStep = fallback
+    ? { ...fallback }
+    : {
+        id: String(s?.id ?? ""),
+        type: (s?.type ?? "custom_select") as CheckoutStepType,
+        title: String(s?.title ?? ""),
+        subtitle: s?.subtitle,
+        enabled: true,
+        required: false,
+        multiSelect: false,
+        options: [],
+        showForTable: true,
+        showCondition: "always",
+        triggerItemIds: [],
+        triggerCategoryIds: [],
+        pricingRule: s?.pricingRule,
+        maxSelectionsEnabled: false,
+        maxSelections: 3,
+        linkedMenuItems: [],
+      };
+
+  const merged = { ...base, ...(s || {}) } as CheckoutStep;
+
+  return {
+    ...merged,
+    enabled: merged.enabled ?? true,
+    required: merged.required ?? false,
+    multiSelect: merged.multiSelect ?? false,
+    options: Array.isArray(merged.options) ? merged.options.map(normalizeOption) : [],
+    showForTable: merged.showForTable ?? base.showForTable,
+    showCondition: (merged.showCondition ?? "always") as any,
+    triggerItemIds: Array.isArray(merged.triggerItemIds) ? merged.triggerItemIds : [],
+    triggerCategoryIds: Array.isArray(merged.triggerCategoryIds) ? merged.triggerCategoryIds : [],
+    maxSelectionsEnabled: merged.maxSelectionsEnabled ?? false,
+    maxSelections: merged.maxSelections ?? 3,
+    linkedMenuItems: Array.isArray(merged.linkedMenuItems)
+      ? merged.linkedMenuItems.map((l: any) => ({ itemId: String(l?.itemId ?? ""), excludeFromStock: Boolean(l?.excludeFromStock) }))
+      : [],
+  };
+};
+
+const normalizeCheckoutConfig = (raw: any): CheckoutConfig => {
+  const rawSteps = Array.isArray(raw?.steps) ? raw.steps : [];
+  const normalized = rawSteps.map(normalizeStep).filter((s) => s.id);
+
+  // Ensure required built-in steps always exist
+  const ids = new Set(normalized.map((s) => s.id));
+  const ensured: CheckoutStep[] = [];
+  defaultCheckoutSteps.forEach((s) => {
+    if ((s.id === "delivery" || s.id === "name") && !ids.has(s.id)) {
+      ensured.push({ ...s });
+    }
+  });
+
+  return { steps: [...ensured, ...normalized] };
+};
+
 export const loadCheckoutConfig = (): CheckoutConfig => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return {
-        steps: parsed.steps || defaultCheckoutSteps,
-      };
+      return normalizeCheckoutConfig(parsed);
     }
   } catch (error) {
     console.error("Error loading checkout config:", error);
@@ -123,7 +190,8 @@ export const loadCheckoutConfig = (): CheckoutConfig => {
 
 export const saveCheckoutConfig = (config: CheckoutConfig): void => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    const normalized = normalizeCheckoutConfig(config);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
   } catch (error) {
     console.error("Error saving checkout config:", error);
   }

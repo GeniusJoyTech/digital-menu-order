@@ -144,11 +144,22 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
   };
 
   const getStepOptions = (step: CheckoutStep) => {
+    const mergeById = <T extends { id: string }>(base: T[], extra: T[]): T[] => {
+      const map = new Map(base.map((o) => [o.id, o] as const));
+      extra.forEach((o) => {
+        if (!map.has(o.id)) map.set(o.id, o);
+      });
+      return Array.from(map.values());
+    };
+
+    const stepExclusive = (step.options || []) as any[];
+
     if (step.type === "extras") {
-      return menuConfig.extras.map(e => ({ ...e, stock: e.stock }));
+      const base = menuConfig.extras.map((e) => ({ ...e, stock: e.stock }));
+      return mergeById(base, stepExclusive as any);
     }
     if (step.type === "drinks") {
-      return menuConfig.drinkOptions;
+      return mergeById(menuConfig.drinkOptions, stepExclusive as any);
     }
     return step.options;
   };

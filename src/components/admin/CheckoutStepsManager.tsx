@@ -118,8 +118,22 @@ export const CheckoutStepsManager = ({
 
   // Save all changes to context
   const handleSaveAllChanges = () => {
-    // Apply all local changes to the context
-    onReorder(localSteps);
+    const pending = takePendingStepExclusiveItem();
+
+    const stepsToSave = editingStep
+      ? localSteps.map((s) =>
+          s.id === editingStep.id
+            ? {
+                ...(pending
+                  ? { ...editingStep, options: [...(editingStep.options || []), pending] }
+                  : editingStep),
+              }
+            : s
+        )
+      : localSteps;
+
+    onReorder(stepsToSave);
+    setEditingStep(null);
     setHasUnsavedChanges(false);
     toast.success("Configurações salvas!");
   };
@@ -128,6 +142,12 @@ export const CheckoutStepsManager = ({
   const handleDiscardChanges = () => {
     setLocalSteps(steps);
     setHasUnsavedChanges(false);
+    setEditingStep(null);
+    setEditingOptionId(null);
+    setEditingStepItemId(null);
+    setNewStepItemName("");
+    setNewStepItemPrice("");
+    setNewStepItemTrackStock(false);
     toast.success("Alterações descartadas!");
   };
 
@@ -1060,7 +1080,13 @@ export const CheckoutStepsManager = ({
       </div>
 
       <button
-        onClick={() => setShowAddForm(true)}
+        onClick={() => {
+          setNewStepItemName("");
+          setNewStepItemPrice("");
+          setNewStepItemTrackStock(false);
+          setEditingStepItemId(null);
+          setShowAddForm(true);
+        }}
         className="flex items-center gap-2 px-4 py-3 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90 transition-colors w-full justify-center"
       >
         <Plus className="w-5 h-5" />
@@ -1560,7 +1586,14 @@ export const CheckoutStepsManager = ({
                 </button>
 
                 <button
-                  onClick={() => setEditingStep(step)}
+                  onClick={() => {
+                    setNewStepItemName("");
+                    setNewStepItemPrice("");
+                    setNewStepItemTrackStock(false);
+                    setEditingStepItemId(null);
+                    setEditingOptionId(null);
+                    setEditingStep(step);
+                  }}
                   className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
                 >
                   <Edit2 className="w-4 h-4" />
