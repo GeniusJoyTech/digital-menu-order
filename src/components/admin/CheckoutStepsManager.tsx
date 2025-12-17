@@ -178,7 +178,7 @@ export const CheckoutStepsManager = ({
       return;
     }
 
-    const id = `step-${Date.now()}`;
+    const id = crypto.randomUUID();
     const pending = takePendingStepExclusiveItem();
     const optionsWithPending = pending ? [...(newStep.options || []), pending] : (newStep.options || []);
 
@@ -229,7 +229,7 @@ export const CheckoutStepsManager = ({
     }
     
     const newOption = {
-      id: `opt-${Date.now()}`,
+      id: crypto.randomUUID(),
       name: newOptionName.trim(),
       price: parseFloat(newOptionPrice) || 0,
       trackStock: newOptionTrackStock,
