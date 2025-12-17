@@ -55,6 +55,8 @@ const STORAGE_KEY = "shakeyes_checkout_config";
 export const BUILTIN_STEP_IDS = {
   delivery: "00000000-0000-0000-0000-000000000001",
   name: "00000000-0000-0000-0000-000000000002",
+  extras: "00000000-0000-0000-0000-000000000003",
+  drinks: "00000000-0000-0000-0000-000000000004",
 } as const;
 
 export const defaultCheckoutSteps: CheckoutStep[] = [
@@ -83,7 +85,7 @@ export const defaultCheckoutSteps: CheckoutStep[] = [
     showCondition: "always",
   },
   {
-    id: "turbinar-shake",
+    id: BUILTIN_STEP_IDS.extras,
     type: "extras",
     title: "Quer turbinar seu Milk Shake?",
     subtitle: "Adicione extras especiais! (opcional)",
@@ -95,7 +97,7 @@ export const defaultCheckoutSteps: CheckoutStep[] = [
     showCondition: "always",
   },
   {
-    id: "bebida-extra",
+    id: BUILTIN_STEP_IDS.drinks,
     type: "drinks",
     title: "Quer água ou refrigerante?",
     subtitle: undefined,
