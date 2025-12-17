@@ -110,26 +110,42 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateMenuItem = async (item: MenuItem) => {
+    // Prepare prices_json as a proper JSON array
+    const pricesData = item.prices.map(p => ({
+      size: p.size,
+      price: Number(p.price)
+    }));
+
     setConfig(prev => ({
       ...prev,
       menuItems: prev.menuItems.map(i => (i.id === item.id ? item : i)),
     }));
 
-    await supabase
+    const { error } = await supabase
       .from("menu_items")
       .update({
         name: item.name,
         description: item.description,
         price: item.prices[0]?.price || 0,
-        prices_json: item.prices,
+        prices_json: pricesData,
         category_id: item.category || null,
         image_url: item.image,
         stock: item.stock ?? null,
       })
       .eq("id", item.id);
+
+    if (error) {
+      console.error("Error updating menu item:", error);
+    }
   };
 
   const addMenuItem = async (item: MenuItem) => {
+    // Prepare prices_json as a proper JSON array
+    const pricesData = item.prices.map(p => ({
+      size: p.size,
+      price: Number(p.price)
+    }));
+
     const { data, error } = await supabase
       .from("menu_items")
       .insert({
@@ -137,7 +153,7 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
         name: item.name,
         description: item.description,
         price: item.prices[0]?.price || 0,
-        prices_json: item.prices,
+        prices_json: pricesData,
         category_id: item.category || null,
         image_url: item.image,
         stock: item.stock ?? null,
@@ -146,7 +162,9 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
       .select()
       .single();
 
-    if (!error && data) {
+    if (error) {
+      console.error("Error adding menu item:", error);
+    } else if (data) {
       setConfig(prev => ({
         ...prev,
         menuItems: [...prev.menuItems, item],
