@@ -1,34 +1,56 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Navigate } from "react-router-dom";
-import { Lock, Mail } from "lucide-react";
+import { Lock, Mail, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 const Login = () => {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, isAdmin, loading, signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
-  if (isAuthenticated) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-pastel-pink flex items-center justify-center">
+        <div className="text-brand-pink">Carregando...</div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated && isAdmin) {
     return <Navigate to="/admin" replace />;
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    setTimeout(() => {
-      const success = login(email, password);
-      if (success) {
-        toast.success("Login realizado com sucesso!");
-        navigate("/admin");
+    try {
+      if (isSignUp) {
+        const { error } = await signUp(email, password);
+        if (error) {
+          toast.error(error.message || "Erro ao criar conta");
+        } else {
+          toast.success("Conta criada! Faça login para continuar.");
+          setIsSignUp(false);
+        }
       } else {
-        toast.error("Email ou senha incorretos");
+        const { error } = await signIn(email, password);
+        if (error) {
+          toast.error(error.message || "Email ou senha incorretos");
+        } else {
+          toast.success("Login realizado com sucesso!");
+          navigate("/admin");
+        }
       }
+    } catch (error) {
+      toast.error("Erro ao processar requisição");
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (
@@ -67,6 +89,7 @@ const Login = () => {
               placeholder="••••••••"
               className="w-full p-3 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-pink"
               required
+              minLength={6}
             />
           </div>
 
@@ -75,8 +98,25 @@ const Login = () => {
             disabled={isLoading}
             className="w-full py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {isLoading ? "Entrando..." : "Entrar"}
+            {isLoading ? "Processando..." : isSignUp ? "Criar conta" : "Entrar"}
           </button>
+
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-sm text-brand-pink hover:underline flex items-center gap-1 justify-center w-full"
+            >
+              <UserPlus className="w-4 h-4" />
+              {isSignUp ? "Já tenho conta" : "Criar nova conta"}
+            </button>
+          </div>
+
+          {isAuthenticated && !isAdmin && (
+            <div className="text-center text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+              Você está logado, mas não tem permissão de administrador.
+            </div>
+          )}
         </form>
       </div>
     </div>
