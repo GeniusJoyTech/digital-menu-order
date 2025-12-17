@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { ShoppingBag, Plus, Minus, Trash2, Send, X } from "lucide-react";
+import { ShoppingBag, Trash2, Send, X } from "lucide-react";
 import { CartItem } from "@/data/menuData";
 import { useMenu } from "@/contexts/MenuContext";
 import { useCheckout } from "@/contexts/CheckoutContext";
@@ -12,12 +12,11 @@ import { toast } from "sonner";
 
 interface CartProps {
   items: CartItem[];
-  onUpdateQuantity: (itemId: string, size: string, delta: number) => void;
-  onRemoveItem: (itemId: string, size: string) => void;
+  onRemoveItem: (instanceId: string) => void;
   onClearCart: () => void;
 }
 
-const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps) => {
+const Cart = ({ items, onRemoveItem, onClearCart }: CartProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const { config } = useMenu();
@@ -26,47 +25,58 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
   const isTable = mesa?.startsWith("mesa-");
   const tableNumber = mesa?.replace("mesa-", "") || null;
 
-  const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
-  const totalPrice = items.reduce(
-    (acc, item) => acc + item.selectedPrice * item.quantity,
-    0
-  );
+  const totalItems = items.length;
+  const totalPrice = items.reduce((acc, item) => acc + item.selectedPrice, 0);
+
+  // Group items for display in cart (by id + size)
+  const groupedItems = items.reduce((acc, item) => {
+    const key = `${item.id}-${item.selectedSize}`;
+    if (!acc[key]) {
+      acc[key] = {
+        ...item,
+        instances: [item],
+        quantity: 1,
+      };
+    } else {
+      acc[key].instances.push(item);
+      acc[key].quantity += 1;
+    }
+    return acc;
+  }, {} as Record<string, CartItem & { instances: CartItem[]; quantity: number }>);
 
   const handleCheckoutSubmit = async (data: CheckoutData) => {
     const phoneNumber = "5515988240374";
     
-    // Calculate extras total from stepValues (new per-item structure)
+    // Calculate extras total from stepValues (per-instance structure)
     let extrasTotal = 0;
-    const extrasSelected: { id?: string; name: string; price: number; cartItemKey?: string }[] = [];
-    const drinksSelected: { id?: string; name: string; price: number; cartItemKey?: string }[] = [];
+    const extrasSelected: { id?: string; name: string; price: number; instanceId?: string }[] = [];
+    const drinksSelected: { id?: string; name: string; price: number; instanceId?: string }[] = [];
 
     // Process step values to get extras, drinks, and custom options
-    // New structure: stepId -> cartItemKey -> selectedOptionIds[]
-    Object.entries(data.stepValues).forEach(([stepId, itemSelections]) => {
+    // Structure: stepId -> instanceId -> selectedOptionIds[]
+    Object.entries(data.stepValues).forEach(([stepId, instanceSelections]) => {
       const step = checkoutConfig.steps.find(s => s.id === stepId);
       if (!step) return;
 
-      // Process each cart item's selections
-      Object.entries(itemSelections).forEach(([cartItemKey, selectedIds]) => {
+      // Process each instance's selections
+      Object.entries(instanceSelections).forEach(([instanceId, selectedIds]) => {
         // Handle custom_select with pricing rules
         if (step.type === "custom_select" && step.pricingRule?.enabled) {
           const rule = step.pricingRule;
           const itemCount = selectedIds.length;
           
-          // Get selected option names for the order
           selectedIds.forEach(optionId => {
             const customOption = step.options.find(o => o.id === optionId);
             if (customOption) {
               extrasSelected.push({ 
                 id: customOption.id, 
                 name: customOption.name, 
-                price: 0, // Price calculated separately based on rule
-                cartItemKey 
+                price: 0,
+                instanceId 
               });
             }
           });
 
-          // Calculate price based on rule type
           if (rule.ruleType === "per_item") {
             extrasTotal += itemCount * rule.pricePerItem;
           } else if (rule.ruleType === "per_item_after_limit") {
@@ -80,27 +90,24 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
           return;
         }
         
-        // Regular processing for steps without custom pricing rules
+        // Regular processing
         selectedIds.forEach(optionId => {
-          // Check in extras
           const extra = config.extras.find(e => e.id === optionId);
           if (extra) {
             extrasTotal += extra.price;
-            extrasSelected.push({ id: extra.id, name: extra.name, price: extra.price, cartItemKey });
+            extrasSelected.push({ id: extra.id, name: extra.name, price: extra.price, instanceId });
             return;
           }
           
-          // Check in drinks (skip "none")
           if (optionId !== "none") {
             const drink = config.drinkOptions.find(d => d.id === optionId);
             if (drink) {
               extrasTotal += drink.price;
-              drinksSelected.push({ id: drink.id, name: drink.name, price: drink.price, cartItemKey });
+              drinksSelected.push({ id: drink.id, name: drink.name, price: drink.price, instanceId });
               return;
             }
           }
           
-          // Check in custom step options (without pricing rules)
           if (step.type === "custom_select") {
             const customOption = step.options.find(o => o.id === optionId);
             if (customOption) {
@@ -109,7 +116,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
                 id: customOption.id, 
                 name: customOption.name, 
                 price: customOption.price, 
-                cartItemKey 
+                instanceId 
               });
             }
           }
@@ -130,7 +137,6 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
     }
     
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `👤 *Nome:* ${data.recipientName}\n`;
     message += `📞 *Telefone:* ${data.customerPhone}\n`;
     
     if (data.deliveryType === "delivery" && data.address) {
@@ -140,27 +146,23 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
     message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
     message += `📋 *ITENS:*\n\n`;
     
-    // Helper to get cart item name by key
-    const getCartItemName = (cartItemKey: string) => {
-      const item = items.find(i => `${i.id}-${i.selectedSize}` === cartItemKey);
-      return item ? `${item.name} (${item.selectedSize})` : cartItemKey;
-    };
-    
+    // Build items message - show each instance with its recipient name
     items.forEach((item) => {
-      const cartItemKey = `${item.id}-${item.selectedSize}`;
-      message += `• ${item.quantity}x ${item.name} (${item.selectedSize})\n`;
-      message += `   R$ ${(item.selectedPrice * item.quantity).toFixed(2).replace(".", ",")}\n`;
+      const recipientName = data.recipientNames?.[item.instanceId] || data.globalRecipientName || "";
+      message += `• ${item.name} (${item.selectedSize})\n`;
+      message += `   👤 ${recipientName}\n`;
+      message += `   R$ ${item.selectedPrice.toFixed(2).replace(".", ",")}\n`;
       
-      // Show extras for this specific item
-      const itemExtras = extrasSelected.filter(e => e.cartItemKey === cartItemKey);
+      // Show extras for this specific instance
+      const itemExtras = extrasSelected.filter(e => e.instanceId === item.instanceId);
       if (itemExtras.length > 0) {
         itemExtras.forEach(extra => {
           message += `   ⚡ ${extra.name}${extra.price > 0 ? ` (+R$ ${extra.price.toFixed(2).replace(".", ",")})` : ""}\n`;
         });
       }
       
-      // Show drinks for this specific item
-      const itemDrinks = drinksSelected.filter(d => d.cartItemKey === cartItemKey);
+      // Show drinks for this specific instance
+      const itemDrinks = drinksSelected.filter(d => d.instanceId === item.instanceId);
       if (itemDrinks.length > 0) {
         itemDrinks.forEach(drink => {
           message += `   🥤 ${drink.name}${drink.price > 0 ? ` (+R$ ${drink.price.toFixed(2).replace(".", ",")})` : ""}\n`;
@@ -186,16 +188,17 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
       id: item.id,
       name: item.name,
       size: item.selectedSize,
-      quantity: item.quantity,
+      quantity: 1,
       price: item.selectedPrice,
+      recipientName: data.recipientNames?.[item.instanceId] || data.globalRecipientName || "",
     }));
 
-    // Combine extras and drinks for order data (remove cartItemKey)
-    const allExtras = [...extrasSelected, ...drinksSelected].map(({ cartItemKey, ...rest }) => rest);
+    // Combine extras and drinks for order data (remove instanceId)
+    const allExtras = [...extrasSelected, ...drinksSelected].map(({ instanceId, ...rest }) => rest);
 
     // Save order to Supabase
     const orderData = {
-      customer_name: data.recipientName,
+      customer_name: data.globalRecipientName || Object.values(data.recipientNames || {})[0] || "",
       customer_phone: data.customerPhone,
       delivery_type: isTable ? "table" : data.deliveryType,
       table_number: tableNumber || null,
@@ -217,13 +220,18 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
       return;
     }
     
-    // Decrease stock after order is placed - include both extras and drinks
+    // Decrease stock - count items by id
+    const itemCounts: Record<string, number> = {};
+    items.forEach(item => {
+      itemCounts[item.id] = (itemCounts[item.id] || 0) + 1;
+    });
+    
     const allOptionsForStock = [...extrasSelected, ...drinksSelected]
       .filter(e => e.id)
       .map(e => ({ id: e.id || "", quantity: 1 }));
     
     await decreaseOrderStock(
-      orderItems.map(i => ({ id: i.id, quantity: i.quantity })),
+      Object.entries(itemCounts).map(([id, quantity]) => ({ id, quantity })),
       allOptionsForStock
     );
 
@@ -307,7 +315,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
             </button>
           </div>
 
-          {/* Items */}
+          {/* Items - grouped display */}
           <div className="overflow-y-auto max-h-[50vh] px-6 py-4">
             {items.length === 0 ? (
               <div className="text-center py-12">
@@ -319,55 +327,42 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
               </div>
             ) : (
               <div className="space-y-3">
-                {items.map((item) => (
+                {Object.values(groupedItems).map((group) => (
                   <div
-                    key={`${item.id}-${item.selectedSize}`}
-                    className="flex gap-3 p-3 bg-pastel-pink rounded-xl animate-scale-in"
+                    key={`${group.id}-${group.selectedSize}`}
+                    className="p-3 bg-pastel-pink rounded-xl animate-scale-in"
                   >
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-16 h-16 rounded-full object-cover border-2 border-card"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-foreground text-sm truncate">
-                        {item.name}
-                      </h4>
-                      <p className="text-xs text-muted-foreground">
-                        {item.selectedSize}
-                      </p>
-                      <p className="font-bold text-brand-pink text-sm mt-1">
-                        R$ {(item.selectedPrice * item.quantity).toFixed(2).replace(".", ",")}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end justify-between">
-                      <button
-                        onClick={() => onRemoveItem(item.id, item.selectedSize)}
-                        className="w-7 h-7 flex items-center justify-center text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() =>
-                            onUpdateQuantity(item.id, item.selectedSize, -1)
-                          }
-                          className="w-7 h-7 flex items-center justify-center bg-card rounded-lg text-foreground hover:bg-muted transition-colors"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="w-6 text-center font-bold text-sm text-foreground">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() =>
-                            onUpdateQuantity(item.id, item.selectedSize, 1)
-                          }
-                          className="w-7 h-7 flex items-center justify-center bg-brand-pink text-primary-foreground rounded-lg hover:opacity-90 transition-colors"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
+                    <div className="flex gap-3">
+                      <img
+                        src={group.image}
+                        alt={group.name}
+                        className="w-16 h-16 rounded-full object-cover border-2 border-card"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-foreground text-sm truncate">
+                          {group.quantity}x {group.name}
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          {group.selectedSize}
+                        </p>
+                        <p className="font-bold text-brand-pink text-sm mt-1">
+                          R$ {(group.selectedPrice * group.quantity).toFixed(2).replace(".", ",")}
+                        </p>
                       </div>
+                    </div>
+                    {/* Show individual items for removal */}
+                    <div className="mt-2 space-y-1">
+                      {group.instances.map((instance, idx) => (
+                        <div key={instance.instanceId} className="flex items-center justify-between pl-4 py-1 border-t border-border/50">
+                          <span className="text-xs text-muted-foreground">Item {idx + 1}</span>
+                          <button
+                            onClick={() => onRemoveItem(instance.instanceId)}
+                            className="p-1 text-destructive hover:bg-destructive/10 rounded transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
