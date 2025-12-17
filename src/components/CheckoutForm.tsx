@@ -144,7 +144,7 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
   };
 
   const getStepOptions = (step: CheckoutStep) => {
-    const mergeById = <T extends { id: string }>(base: T[], extra: T[]): T[] => {
+    const mergeById = <T extends { id: string; stock?: number }>(base: T[], extra: T[]): T[] => {
       const map = new Map(base.map((o) => [o.id, o] as const));
       extra.forEach((o) => {
         if (!map.has(o.id)) map.set(o.id, o);
@@ -152,16 +152,22 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
       return Array.from(map.values());
     };
 
+    // Filter out items with stock === 0 (but keep undefined stock - means unlimited)
+    const filterInStock = <T extends { id: string; stock?: number }>(items: T[]): T[] => {
+      return items.filter(item => item.stock === undefined || item.stock > 0);
+    };
+
     const stepExclusive = (step.options || []) as any[];
 
     if (step.type === "extras") {
       const base = menuConfig.extras.map((e) => ({ ...e, stock: e.stock }));
-      return mergeById(base, stepExclusive as any);
+      return filterInStock(mergeById(base, stepExclusive as any));
     }
     if (step.type === "drinks") {
-      return mergeById(menuConfig.drinkOptions, stepExclusive as any);
+      return filterInStock(mergeById(menuConfig.drinkOptions, stepExclusive as any));
     }
-    return step.options;
+    // For custom_select steps, also filter out of stock items
+    return filterInStock(step.options || []);
   };
 
   const renderStep = () => {

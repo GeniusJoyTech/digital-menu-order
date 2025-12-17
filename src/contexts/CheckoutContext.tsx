@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { 
   CheckoutConfig, 
   CheckoutStep, 
@@ -15,6 +15,8 @@ interface CheckoutContextType {
   deleteStep: (id: string) => void;
   reorderSteps: (steps: CheckoutStep[]) => void;
   resetToDefault: () => void;
+  // Sync functions to remove references when menu items are deleted
+  removeMenuItemFromSteps: (menuItemId: string) => void;
 }
 
 const CheckoutContext = createContext<CheckoutContextType | undefined>(undefined);
@@ -45,6 +47,8 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
     if (id === "delivery" || id === "name") {
       return;
     }
+    // When deleting a step, exclusive items (options with trackStock) are automatically removed
+    // since they only exist within the step
     setConfig((prev) => ({
       ...prev,
       steps: prev.steps.filter((s) => s.id !== id),
@@ -63,6 +67,18 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
     setConfig(defaultConfig);
   };
 
+  // Remove a menu item from all step references (linkedMenuItems, triggerItemIds)
+  const removeMenuItemFromSteps = useCallback((menuItemId: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      steps: prev.steps.map((step) => ({
+        ...step,
+        triggerItemIds: (step.triggerItemIds || []).filter(id => id !== menuItemId),
+        linkedMenuItems: (step.linkedMenuItems || []).filter(l => l.itemId !== menuItemId),
+      })),
+    }));
+  }, []);
+
   return (
     <CheckoutContext.Provider
       value={{
@@ -72,6 +88,7 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
         deleteStep,
         reorderSteps,
         resetToDefault,
+        removeMenuItemFromSteps,
       }}
     >
       {children}

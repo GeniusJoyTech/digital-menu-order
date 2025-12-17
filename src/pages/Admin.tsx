@@ -31,7 +31,7 @@ const Admin = () => {
   const { isAuthenticated, logout } = useAuth();
   const { config, updateMenuItem, addMenuItem, deleteMenuItem, updateExtra, addExtra, deleteExtra, updateDrinkOption, addDrinkOption, deleteDrinkOption, addAcaiTurbineItem, removeAcaiTurbineItem, updateAcaiTurbineItem, updateCategories, resetToDefault } = useMenu();
   const { design, updateDesign, resetDesign, addCustomFont, removeCustomFont, getAllFonts } = useDesign();
-  const { config: checkoutConfig, updateStep, addStep, deleteStep, reorderSteps, resetToDefault: resetCheckout } = useCheckout();
+  const { config: checkoutConfig, updateStep, addStep, deleteStep, reorderSteps, resetToDefault: resetCheckout, removeMenuItemFromSteps } = useCheckout();
   const { exportConfig, importConfig, isExporting, isImporting } = useConfigExport();
   
   const [activeTab, setActiveTab] = useState<TabType>("orders");
@@ -75,6 +75,8 @@ const Admin = () => {
   const handleDeleteItem = (id: string) => {
     if (confirm("Tem certeza que deseja excluir este item?")) {
       deleteMenuItem(id);
+      // Also remove from checkout steps (linkedMenuItems, triggerItemIds)
+      removeMenuItemFromSteps(id);
       toast.success("Item removido!");
     }
   };
