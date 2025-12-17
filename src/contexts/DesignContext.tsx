@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type CardLayout = "left" | "right" | "left-bordered" | "right-bordered" | "left-filled" | "right-filled";
 
@@ -18,7 +19,7 @@ export interface DesignConfig {
   storeName: string;
   storeDescription: string;
   socialLinks: SocialLink[];
-  primaryColor: string; // HSL values like "340 75% 65%"
+  primaryColor: string;
   backgroundColor: string;
   cardBackground: string;
   accentColor: string;
@@ -59,6 +60,7 @@ const defaultDesign: DesignConfig = {
 
 interface DesignContextType {
   design: DesignConfig;
+  loading: boolean;
   updateDesign: (updates: Partial<DesignConfig>) => void;
   resetDesign: () => void;
   addCustomFont: (font: CustomFont) => void;
@@ -68,9 +70,6 @@ interface DesignContextType {
 
 const DesignContext = createContext<DesignContextType | undefined>(undefined);
 
-const STORAGE_KEY = "shake-yes-design";
-
-// Load custom fonts into the document
 const loadCustomFont = (font: CustomFont) => {
   const existingLink = document.querySelector(`link[data-font="${font.name}"]`);
   if (!existingLink) {
@@ -89,79 +88,178 @@ const unloadCustomFont = (fontName: string) => {
   }
 };
 
-export const DesignProvider = ({ children }: { children: ReactNode }) => {
-  const [design, setDesign] = useState<DesignConfig>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        return { ...defaultDesign, ...JSON.parse(saved) };
-      } catch {
-        return defaultDesign;
-      }
-    }
-    return defaultDesign;
+const applyDesignToDOM = (design: DesignConfig) => {
+  const root = document.documentElement;
+  root.style.setProperty("--brand-pink", design.primaryColor);
+  root.style.setProperty("--background", design.backgroundColor);
+  root.style.setProperty("--card", design.cardBackground);
+  root.style.setProperty("--primary", design.accentColor);
+  root.style.setProperty("--border", design.borderColor);
+  root.style.setProperty("--foreground", design.textColor);
+  root.style.setProperty("--heading", design.headingColor);
+  root.style.setProperty("--muted-foreground", design.mutedTextColor);
+
+  design.customFonts.forEach(loadCustomFont);
+  const allFonts = [design.fontDisplay, design.fontBody, design.fontPrice, design.fontButton, design.fontNav];
+  allFonts.forEach(fontName => {
+    const customFont = design.customFonts.find(f => f.name === fontName);
+    if (customFont) loadCustomFont(customFont);
   });
 
+  root.style.setProperty("--font-display", `"${design.fontDisplay}", cursive`);
+  root.style.setProperty("--font-body", `"${design.fontBody}", sans-serif`);
+  root.style.setProperty("--font-price", `"${design.fontPrice || design.fontBody}", sans-serif`);
+  root.style.setProperty("--font-button", `"${design.fontButton || design.fontBody}", sans-serif`);
+  root.style.setProperty("--font-nav", `"${design.fontNav || design.fontBody}", sans-serif`);
+};
+
+export const DesignProvider = ({ children }: { children: ReactNode }) => {
+  const [design, setDesign] = useState<DesignConfig>(defaultDesign);
+  const [loading, setLoading] = useState(true);
+
+  // Load from Supabase on mount
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(design));
-    
-    // Apply CSS variables dynamically
-    const root = document.documentElement;
-    root.style.setProperty("--brand-pink", design.primaryColor);
-    root.style.setProperty("--background", design.backgroundColor);
-    root.style.setProperty("--card", design.cardBackground);
-    root.style.setProperty("--primary", design.accentColor);
-    root.style.setProperty("--border", design.borderColor);
-    root.style.setProperty("--foreground", design.textColor);
-    root.style.setProperty("--heading", design.headingColor);
-    root.style.setProperty("--muted-foreground", design.mutedTextColor);
+    const loadDesign = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("design_config")
+          .select("*")
+          .limit(1)
+          .maybeSingle();
 
-    // Load all custom fonts first
-    design.customFonts.forEach(loadCustomFont);
-
-    // Check if selected fonts are custom fonts and load them
-    const allFonts = [design.fontDisplay, design.fontBody, design.fontPrice, design.fontButton, design.fontNav];
-    allFonts.forEach(fontName => {
-      const customFont = design.customFonts.find(f => f.name === fontName);
-      if (customFont) loadCustomFont(customFont);
-    });
-
-    // Apply fonts dynamically - use proper font stack
-    root.style.setProperty("--font-display", `"${design.fontDisplay}", cursive`);
-    root.style.setProperty("--font-body", `"${design.fontBody}", sans-serif`);
-    root.style.setProperty("--font-price", `"${design.fontPrice || design.fontBody}", sans-serif`);
-    root.style.setProperty("--font-button", `"${design.fontButton || design.fontBody}", sans-serif`);
-    root.style.setProperty("--font-nav", `"${design.fontNav || design.fontBody}", sans-serif`);
-  }, [design]);
-
-  const updateDesign = (updates: Partial<DesignConfig>) => {
-    setDesign((prev) => ({ ...prev, ...updates }));
-  };
-
-  const resetDesign = () => {
-    setDesign(defaultDesign);
-  };
-
-  const addCustomFont = (font: CustomFont) => {
-    setDesign((prev) => {
-      if (prev.customFonts.some((f) => f.name === font.name)) {
-        return prev;
+        if (!error && data) {
+          const loadedDesign: DesignConfig = {
+            logo: data.logo_url || "",
+            storeName: data.store_name || defaultDesign.storeName,
+            storeDescription: data.store_description || defaultDesign.storeDescription,
+            socialLinks: (data.social_links as unknown as SocialLink[]) || [],
+            primaryColor: data.primary_color || defaultDesign.primaryColor,
+            backgroundColor: data.background_color || defaultDesign.backgroundColor,
+            cardBackground: data.card_background || defaultDesign.cardBackground,
+            accentColor: data.accent_color || defaultDesign.accentColor,
+            borderColor: data.border_color || defaultDesign.borderColor,
+            textColor: data.text_color || defaultDesign.textColor,
+            headingColor: data.heading_color || defaultDesign.headingColor,
+            mutedTextColor: data.muted_color || defaultDesign.mutedTextColor,
+            fontDisplay: data.display_font || defaultDesign.fontDisplay,
+            fontBody: data.body_font || defaultDesign.fontBody,
+            fontPrice: data.price_font || defaultDesign.fontPrice,
+            fontButton: data.button_font || defaultDesign.fontButton,
+            fontNav: data.nav_font || defaultDesign.fontNav,
+            cardLayout: defaultDesign.cardLayout,
+            customFonts: [],
+          };
+          
+          if (data.custom_font_name && data.custom_font_url) {
+            loadedDesign.customFonts = [{ name: data.custom_font_name, url: data.custom_font_url }];
+          }
+          
+          setDesign(loadedDesign);
+          applyDesignToDOM(loadedDesign);
+        }
+      } catch (error) {
+        console.error("Error loading design:", error);
+      } finally {
+        setLoading(false);
       }
-      loadCustomFont(font);
-      return { ...prev, customFonts: [...prev.customFonts, font] };
-    });
+    };
+
+    loadDesign();
+  }, []);
+
+  // Apply design changes to DOM
+  useEffect(() => {
+    if (!loading) {
+      applyDesignToDOM(design);
+    }
+  }, [design, loading]);
+
+  const updateDesign = async (updates: Partial<DesignConfig>) => {
+    const newDesign = { ...design, ...updates };
+    setDesign(newDesign);
+
+    // Save to Supabase
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.logo !== undefined) dbUpdates.logo_url = updates.logo;
+    if (updates.storeName !== undefined) dbUpdates.store_name = updates.storeName;
+    if (updates.storeDescription !== undefined) dbUpdates.store_description = updates.storeDescription;
+    if (updates.socialLinks !== undefined) dbUpdates.social_links = updates.socialLinks;
+    if (updates.primaryColor !== undefined) dbUpdates.primary_color = updates.primaryColor;
+    if (updates.backgroundColor !== undefined) dbUpdates.background_color = updates.backgroundColor;
+    if (updates.cardBackground !== undefined) dbUpdates.card_background = updates.cardBackground;
+    if (updates.accentColor !== undefined) dbUpdates.accent_color = updates.accentColor;
+    if (updates.borderColor !== undefined) dbUpdates.border_color = updates.borderColor;
+    if (updates.textColor !== undefined) dbUpdates.text_color = updates.textColor;
+    if (updates.headingColor !== undefined) dbUpdates.heading_color = updates.headingColor;
+    if (updates.mutedTextColor !== undefined) dbUpdates.muted_color = updates.mutedTextColor;
+    if (updates.fontDisplay !== undefined) dbUpdates.display_font = updates.fontDisplay;
+    if (updates.fontBody !== undefined) dbUpdates.body_font = updates.fontBody;
+    if (updates.fontPrice !== undefined) dbUpdates.price_font = updates.fontPrice;
+    if (updates.fontButton !== undefined) dbUpdates.button_font = updates.fontButton;
+    if (updates.fontNav !== undefined) dbUpdates.nav_font = updates.fontNav;
+
+    if (Object.keys(dbUpdates).length > 0) {
+      await supabase
+        .from("design_config")
+        .update(dbUpdates)
+        .eq("id", (await supabase.from("design_config").select("id").limit(1).single()).data?.id);
+    }
+  };
+
+  const resetDesign = async () => {
+    setDesign(defaultDesign);
+    applyDesignToDOM(defaultDesign);
+    
+    const { data } = await supabase.from("design_config").select("id").limit(1).single();
+    if (data) {
+      await supabase.from("design_config").update({
+        logo_url: null,
+        store_name: defaultDesign.storeName,
+        store_description: defaultDesign.storeDescription,
+        social_links: [],
+        primary_color: defaultDesign.primaryColor,
+        background_color: defaultDesign.backgroundColor,
+        card_background: defaultDesign.cardBackground,
+        accent_color: defaultDesign.accentColor,
+        border_color: defaultDesign.borderColor,
+        text_color: defaultDesign.textColor,
+        heading_color: defaultDesign.headingColor,
+        muted_color: defaultDesign.mutedTextColor,
+        display_font: defaultDesign.fontDisplay,
+        body_font: defaultDesign.fontBody,
+        price_font: defaultDesign.fontPrice,
+        button_font: defaultDesign.fontButton,
+        nav_font: defaultDesign.fontNav,
+        custom_font_name: null,
+        custom_font_url: null,
+      }).eq("id", data.id);
+    }
+  };
+
+  const addCustomFont = async (font: CustomFont) => {
+    if (design.customFonts.some((f) => f.name === font.name)) return;
+    
+    loadCustomFont(font);
+    const newCustomFonts = [...design.customFonts, font];
+    setDesign(prev => ({ ...prev, customFonts: newCustomFonts }));
+    
+    const { data } = await supabase.from("design_config").select("id").limit(1).single();
+    if (data) {
+      await supabase.from("design_config").update({
+        custom_font_name: font.name,
+        custom_font_url: font.url,
+      }).eq("id", data.id);
+    }
   };
 
   const removeCustomFont = (fontName: string) => {
-    setDesign((prev) => {
-      unloadCustomFont(fontName);
-      return {
-        ...prev,
-        customFonts: prev.customFonts.filter((f) => f.name !== fontName),
-        fontDisplay: prev.fontDisplay === fontName ? "Pacifico" : prev.fontDisplay,
-        fontBody: prev.fontBody === fontName ? "Poppins" : prev.fontBody,
-      };
-    });
+    unloadCustomFont(fontName);
+    setDesign(prev => ({
+      ...prev,
+      customFonts: prev.customFonts.filter((f) => f.name !== fontName),
+      fontDisplay: prev.fontDisplay === fontName ? "Pacifico" : prev.fontDisplay,
+      fontBody: prev.fontBody === fontName ? "Poppins" : prev.fontBody,
+    }));
   };
 
   const getAllFonts = () => {
@@ -171,7 +269,7 @@ export const DesignProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <DesignContext.Provider value={{ design, updateDesign, resetDesign, addCustomFont, removeCustomFont, getAllFonts }}>
+    <DesignContext.Provider value={{ design, loading, updateDesign, resetDesign, addCustomFont, removeCustomFont, getAllFonts }}>
       {children}
     </DesignContext.Provider>
   );
