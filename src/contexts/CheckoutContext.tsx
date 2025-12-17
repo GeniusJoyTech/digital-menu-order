@@ -54,6 +54,8 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
             }));
 
           const pricingRule = step.pricing_rule as unknown as PricingRule | undefined;
+          const dbMaxSelections = step.max_selections ?? 1;
+          const multiSelect = dbMaxSelections > 1;
 
           return {
             id: step.id,
@@ -62,7 +64,7 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
             subtitle: undefined,
             enabled: step.enabled ?? true,
             required: step.required ?? false,
-            multiSelect: (step.max_selections_enabled && (step.max_selections || 1) > 1) || false,
+            multiSelect,
             options: stepOptions,
             showForTable: true,
             showCondition: (step.show_condition || "always") as CheckoutStep["showCondition"],
@@ -70,7 +72,7 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
             triggerCategoryIds: step.trigger_category_ids || [],
             pricingRule: pricingRule,
             maxSelectionsEnabled: step.max_selections_enabled || false,
-            maxSelections: step.max_selections || 1,
+            maxSelections: multiSelect ? dbMaxSelections : 1,
             linkedMenuItems: [],
           };
         });
@@ -144,6 +146,13 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
         const step = steps[i];
         console.log(`Processing step ${i}: ${step.title} (${step.id})`);
         
+        const effectiveMaxSelections = step.multiSelect
+          ? Math.max(step.maxSelections ?? 3, 2)
+          : 1;
+        const effectiveMaxSelectionsEnabled = step.multiSelect
+          ? (step.maxSelectionsEnabled ?? false)
+          : false;
+
         const stepData = {
           id: step.id,
           title: step.title,
@@ -153,8 +162,8 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
           show_condition: step.showCondition,
           trigger_item_ids: step.triggerItemIds || [],
           trigger_category_ids: step.triggerCategoryIds || [],
-          max_selections_enabled: step.maxSelectionsEnabled,
-          max_selections: step.maxSelections,
+          max_selections_enabled: effectiveMaxSelectionsEnabled,
+          max_selections: effectiveMaxSelections,
           pricing_rule: step.pricingRule ? JSON.parse(JSON.stringify(step.pricingRule)) : null,
           sort_order: i,
         };
@@ -232,6 +241,13 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
       steps: prev.steps.map(s => (s.id === step.id ? step : s)),
     }));
 
+    const effectiveMaxSelections = step.multiSelect
+      ? Math.max(step.maxSelections ?? 3, 2)
+      : 1;
+    const effectiveMaxSelectionsEnabled = step.multiSelect
+      ? (step.maxSelectionsEnabled ?? false)
+      : false;
+
     // Update step in Supabase
     await supabase
       .from("checkout_steps")
@@ -243,8 +259,8 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
         show_condition: step.showCondition,
         trigger_item_ids: step.triggerItemIds || [],
         trigger_category_ids: step.triggerCategoryIds || [],
-        max_selections_enabled: step.maxSelectionsEnabled,
-        max_selections: step.maxSelections,
+        max_selections_enabled: effectiveMaxSelectionsEnabled,
+        max_selections: effectiveMaxSelections,
         pricing_rule: step.pricingRule ? JSON.parse(JSON.stringify(step.pricingRule)) : null,
       })
       .eq("id", step.id);
@@ -299,6 +315,13 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addStep = async (step: CheckoutStep) => {
+    const effectiveMaxSelections = step.multiSelect
+      ? Math.max(step.maxSelections ?? 3, 2)
+      : 1;
+    const effectiveMaxSelectionsEnabled = step.multiSelect
+      ? (step.maxSelectionsEnabled ?? false)
+      : false;
+
     const { data, error } = await supabase
       .from("checkout_steps")
       .insert([{
@@ -310,8 +333,8 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
         show_condition: step.showCondition,
         trigger_item_ids: step.triggerItemIds || [],
         trigger_category_ids: step.triggerCategoryIds || [],
-        max_selections_enabled: step.maxSelectionsEnabled,
-        max_selections: step.maxSelections,
+        max_selections_enabled: effectiveMaxSelectionsEnabled,
+        max_selections: effectiveMaxSelections,
         pricing_rule: step.pricingRule ? JSON.parse(JSON.stringify(step.pricingRule)) : null,
         sort_order: config.steps.length,
       }])

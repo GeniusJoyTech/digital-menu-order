@@ -117,7 +117,7 @@ export const CheckoutStepsManager = ({
   }, []);
 
   // Save all changes to context
-  const handleSaveAllChanges = () => {
+  const handleSaveAllChanges = async () => {
     const pending = takePendingStepExclusiveItem();
 
     const stepsToSave = editingStep
@@ -132,10 +132,15 @@ export const CheckoutStepsManager = ({
         )
       : localSteps;
 
-    onReorder(stepsToSave);
-    setEditingStep(null);
-    setHasUnsavedChanges(false);
-    toast.success("Configurações salvas!");
+    try {
+      await Promise.resolve(onReorder(stepsToSave as any));
+      setEditingStep(null);
+      setHasUnsavedChanges(false);
+      toast.success("Configurações salvas!");
+    } catch (err) {
+      console.error("Erro ao salvar etapas:", err);
+      toast.error("Erro ao salvar. Verifique permissões e tente novamente.");
+    }
   };
 
   // Discard all changes
@@ -676,7 +681,7 @@ export const CheckoutStepsManager = ({
     if (!name) return null;
 
     const item: CheckoutStepOption = {
-      id: `step-item-${Date.now()}`,
+      id: crypto.randomUUID(),
       name,
       price: parseFloat(newStepItemPrice) || 0,
       trackStock: newStepItemTrackStock,
@@ -702,7 +707,7 @@ export const CheckoutStepsManager = ({
     }
     
     const newItem = {
-      id: `step-item-${Date.now()}`,
+      id: crypto.randomUUID(),
       name: newStepItemName.trim(),
       price: parseFloat(newStepItemPrice) || 0,
       trackStock: newStepItemTrackStock,
