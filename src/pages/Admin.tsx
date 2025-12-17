@@ -288,71 +288,93 @@ const Admin = () => {
         {activeTab === "stock" && (
           <div className="space-y-6">
             {/* Menu Items Stock */}
-            <div className="space-y-4">
-              <h2 className="font-display text-xl text-brand-pink">Itens do Cardápio</h2>
-              {config.menuItems.map((item) => (
-                <div
-                  key={item.id}
-                  className={cn(
-                    "flex items-center gap-3 p-4 rounded-xl bg-card border border-border",
-                    item.stock === 0 && "opacity-50"
-                  )}
-                >
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-foreground text-sm">{item.name}</h3>
-                      {item.stock === 0 && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">Esgotado</span>
-                      )}
-                    </div>
+            {(() => {
+              // Get all item IDs that are excluded from stock via checkout steps
+              const excludedItemIds = new Set<string>();
+              checkoutConfig.steps.forEach(step => {
+                (step.linkedMenuItems || []).forEach(link => {
+                  if (link.excludeFromStock) {
+                    excludedItemIds.add(link.itemId);
+                  }
+                });
+              });
+              
+              // Filter out excluded items
+              const stockItems = config.menuItems.filter(item => !excludedItemIds.has(item.id));
+              
+              return (
+                <div className="space-y-4">
+                  <h2 className="font-display text-xl text-brand-pink">Itens do Cardápio</h2>
+                  {excludedItemIds.size > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      {item.stock === undefined ? "Estoque ilimitado" : `Estoque: ${item.stock}`}
+                      {excludedItemIds.size} item(s) excluído(s) do estoque via etapas do pedido
                     </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => updateMenuItem({ ...item, stock: undefined })}
+                  )}
+                  {stockItems.map((item) => (
+                    <div
+                      key={item.id}
                       className={cn(
-                        "px-2 py-1 rounded text-xs",
-                        item.stock === undefined 
-                          ? "bg-brand-pink text-primary-foreground" 
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        "flex items-center gap-3 p-4 rounded-xl bg-card border border-border",
+                        item.stock === 0 && "opacity-50"
                       )}
                     >
-                      ∞
-                    </button>
-                    <button
-                      onClick={() => {
-                        const currentStock = item.stock ?? 0;
-                        if (currentStock > 0) {
-                          updateMenuItem({ ...item, stock: currentStock - 1 });
-                        }
-                      }}
-                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
-                    <span className="w-12 text-center font-bold text-foreground">
-                      {item.stock ?? "∞"}
-                    </span>
-                    <button
-                      onClick={() => {
-                        const currentStock = item.stock ?? 0;
-                        updateMenuItem({ ...item, stock: currentStock + 1 });
-                      }}
-                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-foreground text-sm">{item.name}</h3>
+                          {item.stock === 0 && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">Esgotado</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {item.stock === undefined ? "Estoque ilimitado" : `Estoque: ${item.stock}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateMenuItem({ ...item, stock: undefined })}
+                          className={cn(
+                            "px-2 py-1 rounded text-xs",
+                            item.stock === undefined 
+                              ? "bg-brand-pink text-primary-foreground" 
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          )}
+                        >
+                          ∞
+                        </button>
+                        <button
+                          onClick={() => {
+                            const currentStock = item.stock ?? 0;
+                            if (currentStock > 0) {
+                              updateMenuItem({ ...item, stock: currentStock - 1 });
+                            }
+                          }}
+                          className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <span className="w-12 text-center font-bold text-foreground">
+                          {item.stock ?? "∞"}
+                        </span>
+                        <button
+                          onClick={() => {
+                            const currentStock = item.stock ?? 0;
+                            updateMenuItem({ ...item, stock: currentStock + 1 });
+                          }}
+                          className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
 
             {checkoutConfig.steps
               .filter(step => step.type === "custom_select" && step.options.some(o => o.trackStock))

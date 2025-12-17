@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Edit2, Save, X, Eye, EyeOff, ChevronUp, ChevronDown, Filter, DollarSign, RotateCcw, Ban } from "lucide-react";
-import { CheckoutStep, PricingRule } from "@/data/checkoutConfig";
+import { Plus, Trash2, Edit2, Save, X, Eye, EyeOff, ChevronUp, ChevronDown, Filter, DollarSign, RotateCcw, Ban, Package } from "lucide-react";
+import { CheckoutStep, PricingRule, LinkedMenuItem } from "@/data/checkoutConfig";
 import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -73,6 +73,7 @@ export const CheckoutStepsManager = ({
     pricingRule: { ...defaultPricingRule },
     maxSelectionsEnabled: false,
     maxSelections: 3,
+    linkedMenuItems: [],
   });
 
   const [newOptionName, setNewOptionName] = useState("");
@@ -168,6 +169,7 @@ export const CheckoutStepsManager = ({
       pricingRule: newStep.pricingRule,
       maxSelectionsEnabled: newStep.maxSelectionsEnabled,
       maxSelections: newStep.maxSelections,
+      linkedMenuItems: newStep.linkedMenuItems || [],
     });
 
     setNewStep({
@@ -185,6 +187,7 @@ export const CheckoutStepsManager = ({
       pricingRule: { ...defaultPricingRule },
       maxSelectionsEnabled: false,
       maxSelections: 3,
+      linkedMenuItems: [],
     });
     setShowAddForm(false);
     toast.success("Etapa adicionada localmente. Clique em 'Salvar Configurações' para aplicar.");
@@ -322,6 +325,44 @@ export const CheckoutStepsManager = ({
       setEditingStep({ ...step, triggerCategoryIds: newIds });
     } else {
       updateLocalStep({ ...step, triggerCategoryIds: newIds });
+    }
+  };
+
+  // Functions for linked menu items
+  const toggleLinkedMenuItem = (step: CheckoutStep, itemId: string, isEditing: boolean) => {
+    const currentLinked = step.linkedMenuItems || [];
+    const existingIndex = currentLinked.findIndex(l => l.itemId === itemId);
+    
+    let newLinked: LinkedMenuItem[];
+    if (existingIndex >= 0) {
+      // Remove item
+      newLinked = currentLinked.filter(l => l.itemId !== itemId);
+    } else {
+      // Add item with excludeFromStock = true by default
+      newLinked = [...currentLinked, { itemId, excludeFromStock: true }];
+    }
+    
+    if (isEditing && editingStep) {
+      setEditingStep({ ...step, linkedMenuItems: newLinked });
+    } else if (!isEditing) {
+      setNewStep({ ...newStep, linkedMenuItems: newLinked });
+    } else {
+      updateLocalStep({ ...step, linkedMenuItems: newLinked });
+    }
+  };
+
+  const toggleExcludeFromStock = (step: CheckoutStep, itemId: string, isEditing: boolean) => {
+    const currentLinked = step.linkedMenuItems || [];
+    const newLinked = currentLinked.map(l => 
+      l.itemId === itemId ? { ...l, excludeFromStock: !l.excludeFromStock } : l
+    );
+    
+    if (isEditing && editingStep) {
+      setEditingStep({ ...step, linkedMenuItems: newLinked });
+    } else if (!isEditing) {
+      setNewStep({ ...newStep, linkedMenuItems: newLinked });
+    } else {
+      updateLocalStep({ ...step, linkedMenuItems: newLinked });
     }
   };
 
@@ -596,6 +637,103 @@ export const CheckoutStepsManager = ({
     );
   };
 
+  // Render linked menu items selector for both new step and editing
+  const renderLinkedMenuItemsSelector = (step: CheckoutStep | null, isEditing: boolean) => {
+    const currentStep = isEditing && editingStep ? editingStep : step;
+    const linkedItems = isEditing && editingStep 
+      ? editingStep.linkedMenuItems 
+      : !isEditing 
+        ? newStep.linkedMenuItems 
+        : currentStep?.linkedMenuItems;
+    
+    return (
+      <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
+        <div className="flex items-center gap-2">
+          <Package className="w-4 h-4 text-brand-pink" />
+          <label className="text-sm font-medium text-foreground">Itens do cardápio vinculados</label>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Selecione itens do cardápio para vincular a esta etapa. Itens marcados como "Excluir do estoque" não aparecerão no controle de estoque.
+        </p>
+        
+        <div className="max-h-64 overflow-y-auto space-y-1">
+          {menuItems.map((item) => {
+            const linkedItem = (linkedItems || []).find(l => l.itemId === item.id);
+            const isLinked = !!linkedItem;
+            
+            return (
+              <div
+                key={item.id}
+                className={cn(
+                  "flex items-center gap-2 p-2 rounded-lg transition-colors",
+                  isLinked ? "bg-brand-pink/10 border border-brand-pink/30" : "hover:bg-background"
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={isLinked}
+                  onChange={() => {
+                    if (isEditing && editingStep) {
+                      toggleLinkedMenuItem(editingStep, item.id, true);
+                    } else if (!isEditing) {
+                      const currentLinked = newStep.linkedMenuItems || [];
+                      const existingIndex = currentLinked.findIndex(l => l.itemId === item.id);
+                      if (existingIndex >= 0) {
+                        setNewStep({ ...newStep, linkedMenuItems: currentLinked.filter(l => l.itemId !== item.id) });
+                      } else {
+                        setNewStep({ ...newStep, linkedMenuItems: [...currentLinked, { itemId: item.id, excludeFromStock: true }] });
+                      }
+                    }
+                  }}
+                  className="w-4 h-4 rounded border-border"
+                />
+                <span className="text-sm text-foreground flex-1">{item.name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {categories.find(c => c.id === item.category)?.name || item.category}
+                </span>
+                
+                {isLinked && (
+                  <label className="flex items-center gap-1 ml-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={linkedItem?.excludeFromStock ?? true}
+                      onChange={() => {
+                        if (isEditing && editingStep) {
+                          toggleExcludeFromStock(editingStep, item.id, true);
+                        } else if (!isEditing) {
+                          const currentLinked = newStep.linkedMenuItems || [];
+                          setNewStep({
+                            ...newStep,
+                            linkedMenuItems: currentLinked.map(l => 
+                              l.itemId === item.id ? { ...l, excludeFromStock: !l.excludeFromStock } : l
+                            )
+                          });
+                        }
+                      }}
+                      className="w-3 h-3 rounded border-border"
+                    />
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">Excluir do estoque</span>
+                  </label>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        
+        {(linkedItems || []).length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            <p className="text-xs text-brand-pink">
+              {(linkedItems || []).length} item(s) vinculado(s)
+            </p>
+            <span className="text-xs text-muted-foreground">
+              • {(linkedItems || []).filter(l => l.excludeFromStock).length} excluído(s) do estoque
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const getConditionSummary = (step: CheckoutStep) => {
     const condition = step.showCondition || "always";
     if (condition === "specific_items") {
@@ -723,6 +861,9 @@ export const CheckoutStepsManager = ({
           </div>
 
           {renderNewStepConditionSelector()}
+
+          {/* Linked menu items */}
+          {renderLinkedMenuItemsSelector(null, false)}
 
           {/* Options for custom_select */}
           {newStep.type === "custom_select" && (
@@ -1068,6 +1209,9 @@ export const CheckoutStepsManager = ({
                   </div>
 
                   {renderConditionSelector(step, true)}
+
+                  {/* Linked menu items */}
+                  {renderLinkedMenuItemsSelector(editingStep, true)}
 
                   {/* Options for custom_select when editing */}
                   {editingStep.type === "custom_select" && (
