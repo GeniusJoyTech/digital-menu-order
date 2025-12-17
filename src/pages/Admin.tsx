@@ -525,10 +525,10 @@ const ItemFormModal = ({
 }) => {
   const [formData, setFormData] = useState<MenuItem>(
     item || {
-      id: `item-${Date.now()}`,
+      id: crypto.randomUUID(),
       name: "",
       description: "",
-      prices: [{ size: "500ml", price: 0 }, { size: "300ml", price: 0 }],
+      prices: [{ size: "Único", price: 0 }],
       category: categories.length > 0 ? categories[0].id : "",
       image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=200&h=200&fit=crop",
     }
@@ -776,7 +776,7 @@ const ExtraFormModal = ({
 }) => {
   const [formData, setFormData] = useState(
     extra || {
-      id: `extra-${Date.now()}`,
+      id: crypto.randomUUID(),
       name: "",
       price: 0,
     }
@@ -849,7 +849,7 @@ const DrinkFormModal = ({
 }) => {
   const [formData, setFormData] = useState(
     drink || {
-      id: `drink-${Date.now()}`,
+      id: crypto.randomUUID(),
       name: "",
       price: 0,
     }

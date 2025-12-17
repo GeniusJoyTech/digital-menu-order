@@ -136,7 +136,6 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
         .from("checkout_step_options")
         .insert(
           step.options.map((opt, idx) => ({
-            id: opt.id,
             step_id: step.id,
             name: opt.name,
             price: opt.price,

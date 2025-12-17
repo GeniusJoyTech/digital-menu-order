@@ -59,12 +59,13 @@ export const CategoryManager = ({ categories, menuItems, onUpdate }: CategoryMan
       return;
     }
 
-    const id = newCategory.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    
-    if (categories.some(c => c.id === id)) {
+    if (categories.some(c => c.name.toLowerCase() === newCategory.name.toLowerCase())) {
       toast.error("Já existe uma categoria com esse nome");
       return;
     }
+
+    // Generate UUID for Supabase compatibility
+    const id = crypto.randomUUID();
 
     onUpdate([...categories, { id, name: newCategory.name, color: newCategory.color }]);
     setNewCategory({ name: "", color: "pastel-pink" });
