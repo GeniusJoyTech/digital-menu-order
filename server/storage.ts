@@ -203,6 +203,233 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(schema.orders).where(eq(schema.orders.orderId, orderId)).returning();
     return result.length > 0;
   }
+
+  async getMenuConfig(): Promise<{
+    menuItems: any[];
+    extras: any[];
+    categories: any[];
+    drinkOptions: any[];
+    acaiTurbine: any[];
+  }> {
+    const [menuItemsData, extrasData, categoriesData, drinkOptionsData, acaiTurbineData] = await Promise.all([
+      this.getMenuItems(),
+      this.getExtras(),
+      this.getCategories(),
+      this.getDrinkOptions(),
+      this.getAcaiTurbine(),
+    ]);
+
+    return {
+      menuItems: menuItemsData.map(item => ({
+        id: item.itemId,
+        name: item.name,
+        description: item.description || "",
+        image: item.image || "",
+        category: item.category || "",
+        sizes: item.sizes || [],
+        stock: item.stock,
+        variants: item.variants || [],
+        trackStock: item.trackStock || false,
+        turbineExtras: item.turbineExtras || [],
+      })),
+      extras: extrasData.map(e => ({
+        id: e.extraId,
+        name: e.name,
+        price: parseFloat(e.price),
+        stock: e.stock,
+      })),
+      categories: categoriesData.map(c => ({
+        id: c.categoryId,
+        name: c.name,
+        color: c.color || "#000000",
+      })),
+      drinkOptions: drinkOptionsData.map(d => ({
+        id: d.drinkId,
+        name: d.name,
+        price: parseFloat(d.price),
+        stock: d.stock,
+      })),
+      acaiTurbine: acaiTurbineData.map(a => ({
+        name: a.name,
+        stock: a.stock,
+      })),
+    };
+  }
+
+  async saveMenuConfig(config: {
+    menuItems: any[];
+    extras: any[];
+    categories: any[];
+    drinkOptions: any[];
+    acaiTurbine: any[];
+  }): Promise<void> {
+    await db.delete(schema.menuItems);
+    await db.delete(schema.extras);
+    await db.delete(schema.categories);
+    await db.delete(schema.drinkOptions);
+    await db.delete(schema.acaiTurbine);
+
+    if (config.menuItems && config.menuItems.length > 0) {
+      await db.insert(schema.menuItems).values(
+        config.menuItems.map((item: any) => ({
+          itemId: item.id,
+          name: item.name,
+          description: item.description || "",
+          image: item.image || "",
+          category: item.category || "",
+          sizes: item.sizes || [],
+          stock: item.stock,
+          variants: item.variants || [],
+          trackStock: item.trackStock || false,
+          turbineExtras: item.turbineExtras || [],
+        }))
+      );
+    }
+
+    if (config.extras && config.extras.length > 0) {
+      await db.insert(schema.extras).values(
+        config.extras.map((e: any) => ({
+          extraId: e.id,
+          name: e.name,
+          price: String(e.price),
+          stock: e.stock,
+        }))
+      );
+    }
+
+    if (config.categories && config.categories.length > 0) {
+      await db.insert(schema.categories).values(
+        config.categories.map((c: any) => ({
+          categoryId: c.id,
+          name: c.name,
+          color: c.color || "#000000",
+        }))
+      );
+    }
+
+    if (config.drinkOptions && config.drinkOptions.length > 0) {
+      await db.insert(schema.drinkOptions).values(
+        config.drinkOptions.map((d: any) => ({
+          drinkId: d.id,
+          name: d.name,
+          price: String(d.price),
+          stock: d.stock,
+        }))
+      );
+    }
+
+    if (config.acaiTurbine && config.acaiTurbine.length > 0) {
+      await db.insert(schema.acaiTurbine).values(
+        config.acaiTurbine.map((a: any) => ({
+          name: a.name,
+          stock: a.stock,
+        }))
+      );
+    }
+  }
+
+  async getCheckoutConfig(): Promise<{ steps: any[] }> {
+    const stepsData = await this.getCheckoutSteps();
+    return {
+      steps: stepsData.map(step => ({
+        id: step.stepId,
+        type: step.type,
+        title: step.title,
+        subtitle: step.subtitle,
+        enabled: step.enabled,
+        required: step.required,
+        multiSelect: step.multiSelect,
+        options: step.options || [],
+        showForTable: step.showForTable,
+        skipForPickup: step.skipForPickup,
+        showCondition: step.showCondition || "always",
+        triggerItemIds: step.triggerItemIds || [],
+        triggerCategoryIds: step.triggerCategoryIds || [],
+        pricingRule: step.pricingRule,
+        maxSelectionsEnabled: step.maxSelectionsEnabled,
+        maxSelections: step.maxSelections,
+      })),
+    };
+  }
+
+  async saveCheckoutConfig(config: { steps: any[] }): Promise<void> {
+    await db.delete(schema.checkoutSteps);
+
+    if (config.steps && config.steps.length > 0) {
+      await db.insert(schema.checkoutSteps).values(
+        config.steps.map((step: any, index: number) => ({
+          stepId: step.id,
+          type: step.type,
+          title: step.title,
+          subtitle: step.subtitle,
+          enabled: step.enabled !== false,
+          required: step.required !== false,
+          multiSelect: step.multiSelect || false,
+          options: step.options || [],
+          showForTable: step.showForTable !== false,
+          skipForPickup: step.skipForPickup || false,
+          showCondition: step.showCondition || "always",
+          triggerItemIds: step.triggerItemIds || [],
+          triggerCategoryIds: step.triggerCategoryIds || [],
+          pricingRule: step.pricingRule,
+          maxSelectionsEnabled: step.maxSelectionsEnabled,
+          maxSelections: step.maxSelections,
+          sortOrder: index,
+        }))
+      );
+    }
+  }
+
+  async getDesignConfigFormatted(): Promise<any> {
+    const config = await this.getDesignConfig();
+    if (!config) {
+      return {
+        storeName: "MilkShakes",
+        storeDescription: "Os melhores milkshakes da cidade",
+        storeLogo: "",
+        socialLinks: [],
+        colors: {
+          primary: "#ec4899",
+          background: "#fdf2f8",
+          card: "#ffffff",
+          accent: "#f472b6",
+          border: "#fbcfe8",
+          text: "#1f2937",
+          heading: "#111827",
+          muted: "#6b7280",
+        },
+        fonts: {
+          display: "Pacifico",
+          body: "Poppins",
+          price: "Poppins",
+          button: "Poppins",
+          nav: "Poppins",
+        },
+        customFonts: [],
+      };
+    }
+    return {
+      storeName: config.storeName,
+      storeDescription: config.storeDescription,
+      storeLogo: config.storeLogo,
+      socialLinks: config.socialLinks || [],
+      colors: config.colors || {},
+      fonts: config.fonts || {},
+      customFonts: config.customFonts || [],
+    };
+  }
+
+  async saveDesignConfigFormatted(data: any): Promise<void> {
+    await this.saveDesignConfig({
+      storeName: data.storeName || "MilkShakes",
+      storeDescription: data.storeDescription || "",
+      storeLogo: data.storeLogo || "",
+      socialLinks: data.socialLinks || [],
+      colors: data.colors || {},
+      fonts: data.fonts || {},
+      customFonts: data.customFonts || [],
+    });
+  }
 }
 
 export const storage = new DatabaseStorage();

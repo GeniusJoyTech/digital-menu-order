@@ -287,33 +287,7 @@ export function registerRoutes(app: Express) {
   // Design Config
   app.get("/api/design-config", async (req, res) => {
     try {
-      const config = await storage.getDesignConfig();
-      if (!config) {
-        return res.json({
-          storeName: "MilkShakes",
-          storeDescription: "Os melhores milkshakes da cidade",
-          storeLogo: "",
-          socialLinks: [],
-          colors: {
-            primary: "#ec4899",
-            background: "#fdf2f8",
-            card: "#ffffff",
-            accent: "#f472b6",
-            border: "#fbcfe8",
-            text: "#1f2937",
-            heading: "#111827",
-            muted: "#6b7280",
-          },
-          fonts: {
-            display: "Pacifico",
-            body: "Poppins",
-            price: "Poppins",
-            button: "Poppins",
-            nav: "Poppins",
-          },
-          customFonts: [],
-        });
-      }
+      const config = await storage.getDesignConfigFormatted();
       res.json(config);
     } catch (error) {
       console.error("Error fetching design config:", error);
@@ -323,8 +297,8 @@ export function registerRoutes(app: Express) {
 
   app.put("/api/design-config", async (req, res) => {
     try {
-      const config = await storage.saveDesignConfig(req.body);
-      res.json(config);
+      await storage.saveDesignConfigFormatted(req.body);
+      res.json({ success: true });
     } catch (error) {
       console.error("Error saving design config:", error);
       res.status(500).json({ error: "Failed to save design config" });
@@ -381,46 +355,8 @@ export function registerRoutes(app: Express) {
   // Full Menu Config (combined endpoint for frontend compatibility)
   app.get("/api/menu-config", async (req, res) => {
     try {
-      const [menuItemsData, categoriesData, extrasData, drinkOptionsData, acaiTurbineData] = await Promise.all([
-        storage.getMenuItems(),
-        storage.getCategories(),
-        storage.getExtras(),
-        storage.getDrinkOptions(),
-        storage.getAcaiTurbine(),
-      ]);
-      
-      res.json({
-        menuItems: menuItemsData.map(item => ({
-          id: item.itemId,
-          name: item.name,
-          description: item.description,
-          prices: item.prices,
-          category: item.category,
-          image: item.image,
-          stock: item.stock ? parseInt(item.stock) : undefined,
-        })),
-        categories: categoriesData.map(cat => ({
-          id: cat.categoryId,
-          name: cat.name,
-          color: cat.color,
-        })),
-        extras: extrasData.map(extra => ({
-          id: extra.extraId,
-          name: extra.name,
-          price: parseFloat(extra.price),
-          stock: extra.stock ? parseInt(extra.stock) : undefined,
-        })),
-        drinkOptions: drinkOptionsData.map(drink => ({
-          id: drink.drinkId,
-          name: drink.name,
-          price: parseFloat(drink.price),
-          stock: drink.stock ? parseInt(drink.stock) : undefined,
-        })),
-        acaiTurbine: acaiTurbineData.map(item => ({
-          name: item.name,
-          stock: item.stock ? parseInt(item.stock) : undefined,
-        })),
-      });
+      const config = await storage.getMenuConfig();
+      res.json(config);
     } catch (error) {
       console.error("Error fetching menu config:", error);
       res.status(500).json({ error: "Failed to fetch menu config" });
@@ -430,83 +366,7 @@ export function registerRoutes(app: Express) {
   // Save full Menu Config
   app.put("/api/menu-config", async (req, res) => {
     try {
-      const { menuItems: items, categories: cats, extras: exts, drinkOptions: drinks, acaiTurbine: turbine } = req.body;
-      
-      // For simplicity, we'll update by deleting all and re-inserting
-      // In production, you'd want to do upserts
-      
-      // Clear existing data (this is a simplified approach)
-      const existingItems = await storage.getMenuItems();
-      for (const item of existingItems) {
-        await storage.deleteMenuItem(item.itemId);
-      }
-      
-      const existingCategories = await storage.getCategories();
-      for (const cat of existingCategories) {
-        await storage.deleteCategory(cat.categoryId);
-      }
-      
-      const existingExtras = await storage.getExtras();
-      for (const ext of existingExtras) {
-        await storage.deleteExtra(ext.extraId);
-      }
-      
-      const existingDrinks = await storage.getDrinkOptions();
-      for (const drink of existingDrinks) {
-        await storage.deleteDrinkOption(drink.drinkId);
-      }
-      
-      const existingTurbine = await storage.getAcaiTurbine();
-      for (const item of existingTurbine) {
-        await storage.deleteAcaiTurbineItem(item.id);
-      }
-      
-      // Insert new data
-      for (const item of items || []) {
-        await storage.createMenuItem({
-          itemId: item.id,
-          name: item.name,
-          description: item.description || "",
-          prices: item.prices,
-          category: item.category,
-          image: item.image || "",
-          stock: item.stock?.toString(),
-        });
-      }
-      
-      for (const cat of cats || []) {
-        await storage.createCategory({
-          categoryId: cat.id,
-          name: cat.name,
-          color: cat.color,
-        });
-      }
-      
-      for (const ext of exts || []) {
-        await storage.createExtra({
-          extraId: ext.id,
-          name: ext.name,
-          price: ext.price.toString(),
-          stock: ext.stock?.toString(),
-        });
-      }
-      
-      for (const drink of drinks || []) {
-        await storage.createDrinkOption({
-          drinkId: drink.id,
-          name: drink.name,
-          price: drink.price.toString(),
-          stock: drink.stock?.toString(),
-        });
-      }
-      
-      for (const item of turbine || []) {
-        await storage.createAcaiTurbineItem({
-          name: item.name,
-          stock: item.stock?.toString(),
-        });
-      }
-      
+      await storage.saveMenuConfig(req.body);
       res.json({ success: true });
     } catch (error) {
       console.error("Error saving menu config:", error);
@@ -517,27 +377,8 @@ export function registerRoutes(app: Express) {
   // Checkout Config (combined endpoint)
   app.get("/api/checkout-config", async (req, res) => {
     try {
-      const steps = await storage.getCheckoutSteps();
-      res.json({
-        steps: steps.map(step => ({
-          id: step.stepId,
-          type: step.type,
-          title: step.title,
-          subtitle: step.subtitle,
-          enabled: step.enabled,
-          required: step.required,
-          multiSelect: step.multiSelect,
-          options: step.options,
-          showForTable: step.showForTable,
-          skipForPickup: step.skipForPickup,
-          showCondition: step.showCondition,
-          triggerItemIds: step.triggerItemIds,
-          triggerCategoryIds: step.triggerCategoryIds,
-          pricingRule: step.pricingRule,
-          maxSelectionsEnabled: step.maxSelectionsEnabled,
-          maxSelections: step.maxSelections ? parseInt(step.maxSelections) : undefined,
-        })),
-      });
+      const config = await storage.getCheckoutConfig();
+      res.json(config);
     } catch (error) {
       console.error("Error fetching checkout config:", error);
       res.status(500).json({ error: "Failed to fetch checkout config" });
@@ -546,38 +387,7 @@ export function registerRoutes(app: Express) {
 
   app.put("/api/checkout-config", async (req, res) => {
     try {
-      const { steps } = req.body;
-      
-      // Clear existing steps
-      const existingSteps = await storage.getCheckoutSteps();
-      for (const step of existingSteps) {
-        await storage.deleteCheckoutStep(step.stepId);
-      }
-      
-      // Insert new steps
-      for (let i = 0; i < (steps || []).length; i++) {
-        const step = steps[i];
-        await storage.createCheckoutStep({
-          stepId: step.id,
-          type: step.type,
-          title: step.title,
-          subtitle: step.subtitle,
-          enabled: step.enabled,
-          required: step.required,
-          multiSelect: step.multiSelect,
-          options: step.options || [],
-          showForTable: step.showForTable,
-          skipForPickup: step.skipForPickup,
-          showCondition: step.showCondition || "always",
-          triggerItemIds: step.triggerItemIds,
-          triggerCategoryIds: step.triggerCategoryIds,
-          pricingRule: step.pricingRule,
-          maxSelectionsEnabled: step.maxSelectionsEnabled,
-          maxSelections: step.maxSelections?.toString(),
-          sortOrder: i.toString(),
-        });
-      }
-      
+      await storage.saveCheckoutConfig(req.body);
       res.json({ success: true });
     } catch (error) {
       console.error("Error saving checkout config:", error);
