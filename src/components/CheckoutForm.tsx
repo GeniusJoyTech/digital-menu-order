@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { X, Plus, MapPin, Store, User, Phone, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Plus, MapPin, Store, User, Phone, ChevronDown, ChevronUp, Users } from "lucide-react";
 import { useMenu } from "@/contexts/MenuContext";
 import { useCheckout } from "@/contexts/CheckoutContext";
 import { CartItem } from "@/data/menuData";
@@ -17,14 +17,12 @@ interface CheckoutFormProps {
 export interface CheckoutData {
   deliveryType: "delivery" | "pickup" | "table";
   address?: string;
-  recipientName: string;
+  globalRecipientName?: string;
+  recipientNames?: Record<string, string>; // instanceId -> name
   customerPhone: string;
-  // stepId -> cartItemKey -> selected option ids
+  // stepId -> instanceId -> selected option ids
   stepValues: Record<string, Record<string, string[]>>;
 }
-
-// Unique key for cart item
-const getCartItemKey = (item: CartItem) => `${item.id}-${item.selectedSize}`;
 
 const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: CheckoutFormProps) => {
   const { config: menuConfig } = useMenu();
@@ -33,16 +31,26 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [deliveryType, setDeliveryType] = useState<"delivery" | "pickup">("pickup");
   const [address, setAddress] = useState("");
-  const [recipientName, setRecipientName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  // New structure: stepId -> cartItemKey -> selectedOptionIds[]
+  
+  // Name mode: "single" = one name for all, "multiple" = per item
+  const [nameMode, setNameMode] = useState<"single" | "multiple" | null>(null);
+  const [globalRecipientName, setGlobalRecipientName] = useState("");
+  const [recipientNames, setRecipientNames] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    cartItems.forEach(item => {
+      initial[item.instanceId] = "";
+    });
+    return initial;
+  });
+  
+  // stepId -> instanceId -> selectedOptionIds[]
   const [stepValues, setStepValues] = useState<Record<string, Record<string, string[]>>>({});
-  // Track which cart items are expanded in the UI
+  // Track which items are expanded
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(() => {
-    // Start with all items expanded
     const expanded: Record<string, boolean> = {};
     cartItems.forEach(item => {
-      expanded[getCartItemKey(item)] = true;
+      expanded[item.instanceId] = true;
     });
     return expanded;
   });
@@ -59,16 +67,14 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
     return Array.from(categoryIds);
   }, [cartItems]);
 
-  // Filter steps based on enabled status, table/delivery context, and conditional visibility
+  // Filter steps based on enabled status and conditions
   const visibleSteps = useMemo(() => {
     return checkoutConfig.steps.filter(step => {
       if (!step.enabled) return false;
-      // Skip delivery step for table orders - they don't need address
       if (isTable && step.type === "delivery") return false;
       if (isTable && !step.showForTable) return false;
       if (!isTable && step.skipForPickup && deliveryType === "pickup") return false;
       
-      // Check conditional visibility
       if (step.showCondition === "specific_items" && step.triggerItemIds?.length) {
         const hasMatchingItem = step.triggerItemIds.some(id => cartItemIds.includes(id));
         if (!hasMatchingItem) return false;
@@ -92,12 +98,11 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
   const totalSteps = visibleSteps.length;
   const currentStep = visibleSteps[currentStepIndex];
 
-  // Check if step should show per-item options (selection steps)
   const isPerItemStep = (step: CheckoutStep) => {
     return step.type === "extras" || step.type === "drinks" || step.type === "custom_select";
   };
 
-  // Get cart items relevant to this step (based on triggers)
+  // Get cart items relevant to this step
   const getRelevantCartItems = (step: CheckoutStep): CartItem[] => {
     if (step.showCondition === "always") {
       return cartItems;
@@ -119,15 +124,14 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
     });
   };
 
-  const handleStepValueChange = (step: CheckoutStep, cartItemKey: string, optionId: string) => {
+  const handleStepValueChange = (step: CheckoutStep, instanceId: string, optionId: string) => {
     setStepValues(prev => {
       const stepData = prev[step.id] || {};
-      const itemData = stepData[cartItemKey] || [];
+      const itemData = stepData[instanceId] || [];
       
       if (step.multiSelect) {
         const isSelected = itemData.includes(optionId);
         
-        // If trying to add and max is reached, don't add
         if (!isSelected && step.maxSelectionsEnabled && step.maxSelections) {
           if (itemData.length >= step.maxSelections) {
             return prev;
@@ -138,7 +142,7 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
           ...prev,
           [step.id]: {
             ...stepData,
-            [cartItemKey]: isSelected
+            [instanceId]: isSelected
               ? itemData.filter(id => id !== optionId)
               : [...itemData, optionId]
           }
@@ -148,14 +152,13 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
           ...prev,
           [step.id]: {
             ...stepData,
-            [cartItemKey]: [optionId]
+            [instanceId]: [optionId]
           }
         };
       }
     });
   };
 
-  // Legacy handler for non-per-item steps (like custom_text)
   const handleGlobalStepValueChange = (step: CheckoutStep, value: string) => {
     setStepValues(prev => ({
       ...prev,
@@ -172,7 +175,8 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
       onSubmit({
         deliveryType: isTable ? "table" : deliveryType,
         address: deliveryType === "delivery" ? address : undefined,
-        recipientName,
+        globalRecipientName: nameMode === "single" ? globalRecipientName : undefined,
+        recipientNames: nameMode === "multiple" ? recipientNames : undefined,
         customerPhone,
         stepValues,
       });
@@ -193,18 +197,27 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
     }
     
     if (currentStep.type === "name") {
-      if (recipientName.trim().length < 2) return false;
       if (customerPhone.trim().length < 10) return false;
+      
+      if (nameMode === null) return false;
+      
+      if (nameMode === "single") {
+        if (globalRecipientName.trim().length < 2) return false;
+      } else {
+        // All items need a name
+        const allHaveNames = cartItems.every(item => 
+          (recipientNames[item.instanceId] || "").trim().length >= 2
+        );
+        if (!allHaveNames) return false;
+      }
     }
     
     if (currentStep.required && isPerItemStep(currentStep)) {
       const relevantItems = getRelevantCartItems(currentStep);
       const stepData = stepValues[currentStep.id] || {};
       
-      // Check if at least one item has a selection
       const hasAnySelection = relevantItems.some(item => {
-        const key = getCartItemKey(item);
-        const values = stepData[key] || [];
+        const values = stepData[item.instanceId] || [];
         return values.length > 0 && !values.includes("none");
       });
       
@@ -214,10 +227,10 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
     return true;
   };
 
-  const toggleItemExpanded = (cartItemKey: string) => {
+  const toggleItemExpanded = (instanceId: string) => {
     setExpandedItems(prev => ({
       ...prev,
-      [cartItemKey]: !prev[cartItemKey]
+      [instanceId]: !prev[instanceId]
     }));
   };
 
@@ -230,7 +243,6 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
       return Array.from(map.values());
     };
 
-    // Filter out items with stock === 0 (but keep undefined stock - means unlimited)
     const filterInStock = <T extends { id: string; stock?: number }>(items: T[]): T[] => {
       return items.filter(item => item.stock === undefined || item.stock > 0);
     };
@@ -244,7 +256,6 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
     if (step.type === "drinks") {
       return filterInStock(mergeById(menuConfig.drinkOptions, stepExclusive as any));
     }
-    // For custom_select steps, also filter out of stock items
     return filterInStock(step.options || []);
   };
 
@@ -305,7 +316,7 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
       );
     }
 
-    // Name step
+    // Name step - with single vs multiple option
     if (currentStep.type === "name") {
       return (
         <div className="space-y-4">
@@ -313,20 +324,7 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
             {currentStep.title}
           </h3>
           
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Nome
-            </label>
-            <input
-              type="text"
-              value={recipientName}
-              onChange={(e) => setRecipientName(e.target.value)}
-              placeholder="Digite seu nome..."
-              className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-pink"
-            />
-          </div>
-
+          {/* Phone field */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground flex items-center gap-2">
               <Phone className="w-4 h-4" />
@@ -343,11 +341,96 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
               Usaremos para confirmar seu pedido
             </p>
           </div>
+
+          {/* Name mode selection */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-foreground">
+              Quem vai receber?
+            </label>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setNameMode("single")}
+                className={cn(
+                  "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+                  nameMode === "single"
+                    ? "border-brand-pink bg-pastel-pink"
+                    : "border-border bg-card hover:border-brand-pink/50"
+                )}
+              >
+                <User className="w-6 h-6 text-brand-pink" />
+                <span className="font-medium text-foreground text-sm">Uma pessoa</span>
+              </button>
+              
+              <button
+                onClick={() => setNameMode("multiple")}
+                className={cn(
+                  "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+                  nameMode === "multiple"
+                    ? "border-brand-pink bg-pastel-pink"
+                    : "border-border bg-card hover:border-brand-pink/50"
+                )}
+              >
+                <Users className="w-6 h-6 text-brand-pink" />
+                <span className="font-medium text-foreground text-sm">Várias pessoas</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Single name input */}
+          {nameMode === "single" && (
+            <div className="space-y-2 animate-scale-in">
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Nome para todos os itens
+              </label>
+              <input
+                type="text"
+                value={globalRecipientName}
+                onChange={(e) => setGlobalRecipientName(e.target.value)}
+                placeholder="Digite o nome..."
+                className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-pink"
+              />
+            </div>
+          )}
+
+          {/* Multiple names - per item */}
+          {nameMode === "multiple" && (
+            <div className="space-y-3 animate-scale-in max-h-[40vh] overflow-y-auto">
+              <label className="text-sm font-medium text-foreground">
+                Nome para cada item:
+              </label>
+              {cartItems.map((item, idx) => (
+                <div key={item.instanceId} className="flex gap-3 items-center p-3 bg-pastel-pink rounded-xl">
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-card"
+                  />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground mb-1">
+                      {item.name} ({item.selectedSize})
+                    </p>
+                    <input
+                      type="text"
+                      value={recipientNames[item.instanceId] || ""}
+                      onChange={(e) => setRecipientNames(prev => ({
+                        ...prev,
+                        [item.instanceId]: e.target.value
+                      }))}
+                      placeholder={`Nome do destinatário ${idx + 1}...`}
+                      className="w-full p-2 rounded-lg border border-border bg-card text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-pink"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       );
     }
 
-    // Selection steps (extras, drinks, custom_select) - PER ITEM
+    // Selection steps - PER ITEM INSTANCE
     if (isPerItemStep(currentStep)) {
       const options = getStepOptions(currentStep);
       const relevantItems = getRelevantCartItems(currentStep);
@@ -364,19 +447,22 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
           )}
           
           <div className="space-y-4 max-h-[50vh] overflow-y-auto">
-            {relevantItems.map((cartItem) => {
-              const cartItemKey = getCartItemKey(cartItem);
-              const isExpanded = expandedItems[cartItemKey] ?? true;
-              const selectedValues = stepValues[currentStep.id]?.[cartItemKey] || [];
+            {relevantItems.map((cartItem, itemIdx) => {
+              const isExpanded = expandedItems[cartItem.instanceId] ?? true;
+              const selectedValues = stepValues[currentStep.id]?.[cartItem.instanceId] || [];
               const maxReached = currentStep.maxSelectionsEnabled && currentStep.maxSelections 
                 ? selectedValues.length >= currentStep.maxSelections 
                 : false;
+              
+              // Show item number if multiple of same product
+              const sameProductCount = cartItems.filter(ci => ci.id === cartItem.id).length;
+              const itemIndex = cartItems.filter(ci => ci.id === cartItem.id).findIndex(ci => ci.instanceId === cartItem.instanceId) + 1;
 
               return (
-                <div key={cartItemKey} className="border border-border rounded-xl overflow-hidden">
-                  {/* Cart Item Header */}
+                <div key={cartItem.instanceId} className="border border-border rounded-xl overflow-hidden">
+                  {/* Item Header */}
                   <button
-                    onClick={() => toggleItemExpanded(cartItemKey)}
+                    onClick={() => toggleItemExpanded(cartItem.instanceId)}
                     className="w-full flex items-center gap-3 p-3 bg-pastel-pink hover:bg-pastel-pink/80 transition-colors"
                   >
                     <img
@@ -386,7 +472,7 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
                     />
                     <div className="flex-1 text-left">
                       <h4 className="font-medium text-foreground text-sm">
-                        {cartItem.quantity}x {cartItem.name}
+                        {cartItem.name} {sameProductCount > 1 ? `(${itemIndex}/${sameProductCount})` : ""}
                       </h4>
                       <p className="text-xs text-muted-foreground">
                         {cartItem.selectedSize}
@@ -421,7 +507,7 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
                         return (
                           <button
                             key={option.id}
-                            onClick={() => !isDisabled && handleStepValueChange(currentStep, cartItemKey, option.id)}
+                            onClick={() => !isDisabled && handleStepValueChange(currentStep, cartItem.instanceId, option.id)}
                             disabled={isDisabled}
                             className={cn(
                               "w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all",
@@ -441,11 +527,10 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
                               )}
                               <span className={cn("font-medium text-foreground text-sm", isOutOfStock && "line-through")}>
                                 {option.name}
-                                {isOutOfStock && <span className="ml-2 text-xs text-destructive">(Esgotado)</span>}
                               </span>
                             </div>
                             {option.price > 0 && (
-                              <span className="text-brand-pink font-bold text-sm">
+                              <span className="text-sm text-brand-pink font-medium">
                                 +R$ {option.price.toFixed(2).replace(".", ",")}
                               </span>
                             )}
@@ -464,7 +549,7 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
 
     // Custom text step
     if (currentStep.type === "custom_text") {
-      const globalValue = stepValues[currentStep.id]?.["_global"]?.[0] || "";
+      const currentValue = stepValues[currentStep.id]?.["_global"]?.[0] || "";
       
       return (
         <div className="space-y-4">
@@ -478,11 +563,11 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
           )}
           
           <textarea
-            value={globalValue}
+            value={currentValue}
             onChange={(e) => handleGlobalStepValueChange(currentStep, e.target.value)}
             placeholder="Digite aqui..."
             className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-pink resize-none"
-            rows={3}
+            rows={4}
           />
         </div>
       );
@@ -491,31 +576,29 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
     return null;
   };
 
-  if (totalSteps === 0) {
-    return null;
-  }
-
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center">
+      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-foreground/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      
-      <div className="relative w-full max-h-[90vh] bg-card rounded-t-3xl shadow-lg animate-slide-up overflow-hidden">
+
+      {/* Modal */}
+      <div className="relative w-full max-w-lg bg-card rounded-t-3xl shadow-lg animate-slide-up max-h-[90vh] overflow-hidden flex flex-col">
         {/* Handle */}
-        <div className="flex justify-center py-3">
+        <div className="flex justify-center py-3 flex-shrink-0">
           <div className="w-12 h-1.5 bg-muted rounded-full" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pb-4 border-b border-border">
+        <div className="flex items-center justify-between px-6 pb-4 border-b border-border flex-shrink-0">
           <div>
             <h2 className="font-display text-2xl text-brand-pink">
               Finalizar Pedido
             </h2>
             <p className="text-sm text-muted-foreground">
-              Passo {currentStepIndex + 1} de {totalSteps}
+              {isTable ? `Mesa ${tableNumber} • ` : ""}Etapa {currentStepIndex + 1} de {totalSteps}
             </p>
           </div>
           <button
@@ -526,33 +609,28 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
           </button>
         </div>
 
-        {/* Progress */}
-        <div className="px-6 py-3">
-          <div className="flex gap-1">
-            {Array.from({ length: totalSteps }).map((_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex-1 h-1.5 rounded-full transition-colors",
-                  i <= currentStepIndex ? "bg-brand-pink" : "bg-muted"
-                )}
-              />
-            ))}
+        {/* Progress Bar */}
+        <div className="px-6 py-3 flex-shrink-0">
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-brand-pink transition-all duration-300"
+              style={{ width: `${((currentStepIndex + 1) / totalSteps) * 100}%` }}
+            />
           </div>
         </div>
 
         {/* Content */}
-        <div className="px-6 py-4 overflow-y-auto max-h-[50vh]">
+        <div className="px-6 py-4 overflow-y-auto flex-1">
           {renderStep()}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border bg-card">
+        <div className="px-6 py-4 border-t border-border bg-card flex-shrink-0">
           <div className="flex gap-3">
             {currentStepIndex > 0 && (
               <button
                 onClick={handleBack}
-                className="flex-1 py-3 rounded-xl font-bold border-2 border-border text-foreground hover:bg-muted transition-colors"
+                className="flex-1 py-3 rounded-xl font-medium border-2 border-border text-foreground hover:bg-muted transition-colors"
               >
                 Voltar
               </button>
@@ -567,7 +645,7 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
-              {currentStepIndex === totalSteps - 1 ? "Confirmar" : "Próximo"}
+              {currentStepIndex === totalSteps - 1 ? "Enviar Pedido" : "Próximo"}
             </button>
           </div>
         </div>

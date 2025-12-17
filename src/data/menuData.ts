@@ -12,9 +12,10 @@ export interface MenuItem {
 }
 
 export interface CartItem extends MenuItem {
+  instanceId: string; // Unique ID for each individual item instance
   selectedSize: string;
   selectedPrice: number;
-  quantity: number;
+  recipientName?: string; // Optional per-item recipient name
 }
 
 export const menuCategories: { id: string; name: string; color: string }[] = [];
