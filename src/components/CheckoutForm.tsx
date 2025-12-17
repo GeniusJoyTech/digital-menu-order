@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { X, Plus, MapPin, Store, User, Phone } from "lucide-react";
+import { X, Plus, MapPin, Store, User, Phone, ChevronDown, ChevronUp } from "lucide-react";
 import { useMenu } from "@/contexts/MenuContext";
 import { useCheckout } from "@/contexts/CheckoutContext";
 import { CartItem } from "@/data/menuData";
@@ -19,8 +19,12 @@ export interface CheckoutData {
   address?: string;
   recipientName: string;
   customerPhone: string;
-  stepValues: Record<string, string[]>; // step.id -> selected option ids
+  // stepId -> cartItemKey -> selected option ids
+  stepValues: Record<string, Record<string, string[]>>;
 }
+
+// Unique key for cart item
+const getCartItemKey = (item: CartItem) => `${item.id}-${item.selectedSize}`;
 
 const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: CheckoutFormProps) => {
   const { config: menuConfig } = useMenu();
@@ -31,7 +35,17 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
   const [address, setAddress] = useState("");
   const [recipientName, setRecipientName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [stepValues, setStepValues] = useState<Record<string, string[]>>({});
+  // New structure: stepId -> cartItemKey -> selectedOptionIds[]
+  const [stepValues, setStepValues] = useState<Record<string, Record<string, string[]>>>({});
+  // Track which cart items are expanded in the UI
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(() => {
+    // Start with all items expanded
+    const expanded: Record<string, boolean> = {};
+    cartItems.forEach(item => {
+      expanded[getCartItemKey(item)] = true;
+    });
+    return expanded;
+  });
 
   // Get cart item IDs and category IDs for conditional step visibility
   const cartItemIds = useMemo(() => cartItems.map(item => item.id), [cartItems]);
@@ -78,29 +92,77 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
   const totalSteps = visibleSteps.length;
   const currentStep = visibleSteps[currentStepIndex];
 
-  const handleStepValueChange = (step: CheckoutStep, optionId: string) => {
+  // Check if step should show per-item options (selection steps)
+  const isPerItemStep = (step: CheckoutStep) => {
+    return step.type === "extras" || step.type === "drinks" || step.type === "custom_select";
+  };
+
+  // Get cart items relevant to this step (based on triggers)
+  const getRelevantCartItems = (step: CheckoutStep): CartItem[] => {
+    if (step.showCondition === "always") {
+      return cartItems;
+    }
+    
+    return cartItems.filter(item => {
+      if (step.showCondition === "specific_items" && step.triggerItemIds?.length) {
+        return step.triggerItemIds.includes(item.id);
+      }
+      if (step.showCondition === "specific_categories" && step.triggerCategoryIds?.length) {
+        return step.triggerCategoryIds.includes(item.category || "");
+      }
+      if (step.showCondition === "items_and_categories") {
+        const matchesItem = step.triggerItemIds?.includes(item.id);
+        const matchesCategory = step.triggerCategoryIds?.includes(item.category || "");
+        return matchesItem || matchesCategory;
+      }
+      return true;
+    });
+  };
+
+  const handleStepValueChange = (step: CheckoutStep, cartItemKey: string, optionId: string) => {
     setStepValues(prev => {
+      const stepData = prev[step.id] || {};
+      const itemData = stepData[cartItemKey] || [];
+      
       if (step.multiSelect) {
-        const current = prev[step.id] || [];
-        const isSelected = current.includes(optionId);
+        const isSelected = itemData.includes(optionId);
         
         // If trying to add and max is reached, don't add
         if (!isSelected && step.maxSelectionsEnabled && step.maxSelections) {
-          if (current.length >= step.maxSelections) {
+          if (itemData.length >= step.maxSelections) {
             return prev;
           }
         }
         
         return {
           ...prev,
-          [step.id]: isSelected
-            ? current.filter(id => id !== optionId)
-            : [...current, optionId]
+          [step.id]: {
+            ...stepData,
+            [cartItemKey]: isSelected
+              ? itemData.filter(id => id !== optionId)
+              : [...itemData, optionId]
+          }
         };
       } else {
-        return { ...prev, [step.id]: [optionId] };
+        return {
+          ...prev,
+          [step.id]: {
+            ...stepData,
+            [cartItemKey]: [optionId]
+          }
+        };
       }
     });
+  };
+
+  // Legacy handler for non-per-item steps (like custom_text)
+  const handleGlobalStepValueChange = (step: CheckoutStep, value: string) => {
+    setStepValues(prev => ({
+      ...prev,
+      [step.id]: {
+        "_global": [value]
+      }
+    }));
   };
 
   const handleNext = () => {
@@ -135,14 +197,28 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
       if (customerPhone.trim().length < 10) return false;
     }
     
-    if (currentStep.required) {
-      if (currentStep.type === "extras" || currentStep.type === "drinks" || currentStep.type === "custom_select") {
-        const values = stepValues[currentStep.id] || [];
-        if (values.length === 0 || (values.length === 1 && values[0] === "none")) return false;
-      }
+    if (currentStep.required && isPerItemStep(currentStep)) {
+      const relevantItems = getRelevantCartItems(currentStep);
+      const stepData = stepValues[currentStep.id] || {};
+      
+      // Check if at least one item has a selection
+      const hasAnySelection = relevantItems.some(item => {
+        const key = getCartItemKey(item);
+        const values = stepData[key] || [];
+        return values.length > 0 && !values.includes("none");
+      });
+      
+      if (!hasAnySelection) return false;
     }
     
     return true;
+  };
+
+  const toggleItemExpanded = (cartItemKey: string) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [cartItemKey]: !prev[cartItemKey]
+    }));
   };
 
   const getStepOptions = (step: CheckoutStep) => {
@@ -271,13 +347,10 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
       );
     }
 
-    // Selection steps (extras, drinks, custom_select)
-    if (currentStep.type === "extras" || currentStep.type === "drinks" || currentStep.type === "custom_select") {
+    // Selection steps (extras, drinks, custom_select) - PER ITEM
+    if (isPerItemStep(currentStep)) {
       const options = getStepOptions(currentStep);
-      const selectedValues = stepValues[currentStep.id] || [];
-      const maxReached = currentStep.maxSelectionsEnabled && currentStep.maxSelections 
-        ? selectedValues.length >= currentStep.maxSelections 
-        : false;
+      const relevantItems = getRelevantCartItems(currentStep);
       
       return (
         <div className="space-y-4">
@@ -289,50 +362,99 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
               {currentStep.subtitle}
             </p>
           )}
-          {currentStep.maxSelectionsEnabled && currentStep.maxSelections && (
-            <p className="text-center text-sm text-brand-pink font-medium">
-              {selectedValues.length} de {currentStep.maxSelections} selecionado(s)
-            </p>
-          )}
           
-          <div className="grid grid-cols-1 gap-2 max-h-[40vh] overflow-y-auto">
-            {options.map((option) => {
-              const isOutOfStock = option.stock === 0 && option.id !== "none";
-              const isSelected = selectedValues.includes(option.id);
-              const isDisabled = isOutOfStock || (maxReached && !isSelected);
-              
+          <div className="space-y-4 max-h-[50vh] overflow-y-auto">
+            {relevantItems.map((cartItem) => {
+              const cartItemKey = getCartItemKey(cartItem);
+              const isExpanded = expandedItems[cartItemKey] ?? true;
+              const selectedValues = stepValues[currentStep.id]?.[cartItemKey] || [];
+              const maxReached = currentStep.maxSelectionsEnabled && currentStep.maxSelections 
+                ? selectedValues.length >= currentStep.maxSelections 
+                : false;
+
               return (
-                <button
-                  key={option.id}
-                  onClick={() => !isDisabled && handleStepValueChange(currentStep, option.id)}
-                  disabled={isDisabled}
-                  className={cn(
-                    "flex items-center justify-between p-3 rounded-xl border-2 transition-all",
-                    isDisabled && !isSelected
-                      ? "border-border bg-muted opacity-50 cursor-not-allowed"
-                      : isSelected
-                        ? "border-brand-pink bg-pastel-pink"
-                        : "border-border bg-card hover:border-brand-pink/50"
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    {currentStep.multiSelect && (
-                      <Plus className={cn(
-                        "w-5 h-5 transition-transform",
-                        isSelected ? "rotate-45 text-brand-pink" : "text-muted-foreground"
-                      )} />
+                <div key={cartItemKey} className="border border-border rounded-xl overflow-hidden">
+                  {/* Cart Item Header */}
+                  <button
+                    onClick={() => toggleItemExpanded(cartItemKey)}
+                    className="w-full flex items-center gap-3 p-3 bg-pastel-pink hover:bg-pastel-pink/80 transition-colors"
+                  >
+                    <img
+                      src={cartItem.image}
+                      alt={cartItem.name}
+                      className="w-12 h-12 rounded-full object-cover border-2 border-card"
+                    />
+                    <div className="flex-1 text-left">
+                      <h4 className="font-medium text-foreground text-sm">
+                        {cartItem.quantity}x {cartItem.name}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        {cartItem.selectedSize}
+                        {selectedValues.length > 0 && (
+                          <span className="ml-2 text-brand-pink">
+                            • {selectedValues.length} selecionado(s)
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
                     )}
-                    <span className={cn("font-medium text-foreground", isOutOfStock && "line-through")}>
-                      {option.name}
-                      {isOutOfStock && <span className="ml-2 text-xs text-destructive">(Esgotado)</span>}
-                    </span>
-                  </div>
-                  {option.price > 0 && (
-                    <span className="text-brand-pink font-bold">
-                      +R$ {option.price.toFixed(2).replace(".", ",")}
-                    </span>
+                  </button>
+
+                  {/* Options for this item */}
+                  {isExpanded && (
+                    <div className="p-3 space-y-2 bg-card">
+                      {currentStep.maxSelectionsEnabled && currentStep.maxSelections && (
+                        <p className="text-center text-xs text-brand-pink font-medium mb-2">
+                          {selectedValues.length} de {currentStep.maxSelections} selecionado(s)
+                        </p>
+                      )}
+                      
+                      {options.map((option) => {
+                        const isOutOfStock = option.stock === 0 && option.id !== "none";
+                        const isSelected = selectedValues.includes(option.id);
+                        const isDisabled = isOutOfStock || (maxReached && !isSelected);
+                        
+                        return (
+                          <button
+                            key={option.id}
+                            onClick={() => !isDisabled && handleStepValueChange(currentStep, cartItemKey, option.id)}
+                            disabled={isDisabled}
+                            className={cn(
+                              "w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all",
+                              isDisabled && !isSelected
+                                ? "border-border bg-muted opacity-50 cursor-not-allowed"
+                                : isSelected
+                                  ? "border-brand-pink bg-pastel-pink"
+                                  : "border-border bg-card hover:border-brand-pink/50"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              {currentStep.multiSelect && (
+                                <Plus className={cn(
+                                  "w-5 h-5 transition-transform",
+                                  isSelected ? "rotate-45 text-brand-pink" : "text-muted-foreground"
+                                )} />
+                              )}
+                              <span className={cn("font-medium text-foreground text-sm", isOutOfStock && "line-through")}>
+                                {option.name}
+                                {isOutOfStock && <span className="ml-2 text-xs text-destructive">(Esgotado)</span>}
+                              </span>
+                            </div>
+                            {option.price > 0 && (
+                              <span className="text-brand-pink font-bold text-sm">
+                                +R$ {option.price.toFixed(2).replace(".", ",")}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
@@ -342,6 +464,8 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
 
     // Custom text step
     if (currentStep.type === "custom_text") {
+      const globalValue = stepValues[currentStep.id]?.["_global"]?.[0] || "";
+      
       return (
         <div className="space-y-4">
           <h3 className="font-display text-xl text-brand-pink text-center">
@@ -354,8 +478,8 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
           )}
           
           <textarea
-            value={(stepValues[currentStep.id] || [])[0] || ""}
-            onChange={(e) => setStepValues(prev => ({ ...prev, [currentStep.id]: [e.target.value] }))}
+            value={globalValue}
+            onChange={(e) => handleGlobalStepValueChange(currentStep, e.target.value)}
             placeholder="Digite aqui..."
             className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-pink resize-none"
             rows={3}

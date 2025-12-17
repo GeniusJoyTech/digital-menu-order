@@ -35,73 +35,85 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
   const handleCheckoutSubmit = async (data: CheckoutData) => {
     const phoneNumber = "5515988240374";
     
-    // Calculate extras total from stepValues
+    // Calculate extras total from stepValues (new per-item structure)
     let extrasTotal = 0;
-    const extrasSelected: { id?: string; name: string; price: number }[] = [];
-    let drinkSelected: { id?: string; name: string; price: number } | null = null;
+    const extrasSelected: { id?: string; name: string; price: number; cartItemKey?: string }[] = [];
+    const drinksSelected: { id?: string; name: string; price: number; cartItemKey?: string }[] = [];
 
     // Process step values to get extras, drinks, and custom options
-    Object.entries(data.stepValues).forEach(([stepId, selectedIds]) => {
-      // Find the step to check its type and pricing rules
+    // New structure: stepId -> cartItemKey -> selectedOptionIds[]
+    Object.entries(data.stepValues).forEach(([stepId, itemSelections]) => {
       const step = checkoutConfig.steps.find(s => s.id === stepId);
-      
       if (!step) return;
 
-      // Handle custom_select with pricing rules
-      if (step.type === "custom_select" && step.pricingRule?.enabled) {
-        const rule = step.pricingRule;
-        const itemCount = selectedIds.length;
-        
-        // Get selected option names for the order
-        selectedIds.forEach(optionId => {
-          const customOption = step.options.find(o => o.id === optionId);
-          if (customOption) {
-            extrasSelected.push({ id: customOption.id, name: customOption.name, price: 0 }); // Price calculated separately
-          }
-        });
+      // Process each cart item's selections
+      Object.entries(itemSelections).forEach(([cartItemKey, selectedIds]) => {
+        // Handle custom_select with pricing rules
+        if (step.type === "custom_select" && step.pricingRule?.enabled) {
+          const rule = step.pricingRule;
+          const itemCount = selectedIds.length;
+          
+          // Get selected option names for the order
+          selectedIds.forEach(optionId => {
+            const customOption = step.options.find(o => o.id === optionId);
+            if (customOption) {
+              extrasSelected.push({ 
+                id: customOption.id, 
+                name: customOption.name, 
+                price: 0, // Price calculated separately based on rule
+                cartItemKey 
+              });
+            }
+          });
 
-        // Calculate price based on rule type
-        if (rule.ruleType === "per_item") {
-          extrasTotal += itemCount * rule.pricePerItem;
-        } else if (rule.ruleType === "per_item_after_limit") {
-          const chargeableItems = Math.max(0, itemCount - rule.freeItemsLimit);
-          extrasTotal += chargeableItems * rule.pricePerItem;
-        } else if (rule.ruleType === "flat_after_limit") {
-          if (itemCount > rule.freeItemsLimit) {
-            extrasTotal += rule.flatPrice;
+          // Calculate price based on rule type
+          if (rule.ruleType === "per_item") {
+            extrasTotal += itemCount * rule.pricePerItem;
+          } else if (rule.ruleType === "per_item_after_limit") {
+            const chargeableItems = Math.max(0, itemCount - rule.freeItemsLimit);
+            extrasTotal += chargeableItems * rule.pricePerItem;
+          } else if (rule.ruleType === "flat_after_limit") {
+            if (itemCount > rule.freeItemsLimit) {
+              extrasTotal += rule.flatPrice;
+            }
           }
-        }
-        return;
-      }
-      
-      // Regular processing for steps without custom pricing rules
-      selectedIds.forEach(optionId => {
-        // Check in extras
-        const extra = config.extras.find(e => e.id === optionId);
-        if (extra) {
-          extrasTotal += extra.price;
-          extrasSelected.push({ id: extra.id, name: extra.name, price: extra.price });
           return;
         }
         
-        // Check in drinks (skip "none")
-        if (optionId !== "none") {
-          const drink = config.drinkOptions.find(d => d.id === optionId);
-          if (drink) {
-            extrasTotal += drink.price;
-            drinkSelected = { id: drink.id, name: drink.name, price: drink.price };
+        // Regular processing for steps without custom pricing rules
+        selectedIds.forEach(optionId => {
+          // Check in extras
+          const extra = config.extras.find(e => e.id === optionId);
+          if (extra) {
+            extrasTotal += extra.price;
+            extrasSelected.push({ id: extra.id, name: extra.name, price: extra.price, cartItemKey });
             return;
           }
-        }
-        
-        // Check in custom step options (without pricing rules)
-        if (step && step.type === "custom_select") {
-          const customOption = step.options.find(o => o.id === optionId);
-          if (customOption) {
-            extrasTotal += customOption.price;
-            extrasSelected.push({ id: customOption.id, name: customOption.name, price: customOption.price });
+          
+          // Check in drinks (skip "none")
+          if (optionId !== "none") {
+            const drink = config.drinkOptions.find(d => d.id === optionId);
+            if (drink) {
+              extrasTotal += drink.price;
+              drinksSelected.push({ id: drink.id, name: drink.name, price: drink.price, cartItemKey });
+              return;
+            }
           }
-        }
+          
+          // Check in custom step options (without pricing rules)
+          if (step.type === "custom_select") {
+            const customOption = step.options.find(o => o.id === optionId);
+            if (customOption) {
+              extrasTotal += customOption.price;
+              extrasSelected.push({ 
+                id: customOption.id, 
+                name: customOption.name, 
+                price: customOption.price, 
+                cartItemKey 
+              });
+            }
+          }
+        });
       });
     });
 
@@ -128,24 +140,37 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
     message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
     message += `📋 *ITENS:*\n\n`;
     
+    // Helper to get cart item name by key
+    const getCartItemName = (cartItemKey: string) => {
+      const item = items.find(i => `${i.id}-${i.selectedSize}` === cartItemKey);
+      return item ? `${item.name} (${item.selectedSize})` : cartItemKey;
+    };
+    
     items.forEach((item) => {
+      const cartItemKey = `${item.id}-${item.selectedSize}`;
       message += `• ${item.quantity}x ${item.name} (${item.selectedSize})\n`;
-      message += `   R$ ${(item.selectedPrice * item.quantity).toFixed(2).replace(".", ",")}\n\n`;
+      message += `   R$ ${(item.selectedPrice * item.quantity).toFixed(2).replace(".", ",")}\n`;
+      
+      // Show extras for this specific item
+      const itemExtras = extrasSelected.filter(e => e.cartItemKey === cartItemKey);
+      if (itemExtras.length > 0) {
+        itemExtras.forEach(extra => {
+          message += `   ⚡ ${extra.name}${extra.price > 0 ? ` (+R$ ${extra.price.toFixed(2).replace(".", ",")})` : ""}\n`;
+        });
+      }
+      
+      // Show drinks for this specific item
+      const itemDrinks = drinksSelected.filter(d => d.cartItemKey === cartItemKey);
+      if (itemDrinks.length > 0) {
+        itemDrinks.forEach(drink => {
+          message += `   🥤 ${drink.name}${drink.price > 0 ? ` (+R$ ${drink.price.toFixed(2).replace(".", ",")})` : ""}\n`;
+        });
+      }
+      
+      message += `\n`;
     });
     
-    if (extrasSelected.length > 0) {
-      message += `\n⚡ *EXTRAS:*\n`;
-      extrasSelected.forEach((extra) => {
-        message += `• ${extra.name} - R$ ${extra.price.toFixed(2).replace(".", ",")}\n`;
-      });
-    }
-    
-    if (drinkSelected) {
-      message += `\n🥤 *BEBIDA:*\n`;
-      message += `• ${drinkSelected.name} - R$ ${drinkSelected.price.toFixed(2).replace(".", ",")}\n`;
-    }
-    
-    message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
     message += `💰 *TOTAL: R$ ${finalTotal.toFixed(2).replace(".", ",")}*\n`;
     
     if (isTable) {
@@ -165,6 +190,9 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
       price: item.selectedPrice,
     }));
 
+    // Combine extras and drinks for order data (remove cartItemKey)
+    const allExtras = [...extrasSelected, ...drinksSelected].map(({ cartItemKey, ...rest }) => rest);
+
     // Save order to Supabase
     const orderData = {
       customer_name: data.recipientName,
@@ -172,8 +200,8 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
       delivery_type: isTable ? "table" : data.deliveryType,
       table_number: tableNumber || null,
       items: orderItems,
-      extras: extrasSelected,
-      drink: drinkSelected ? drinkSelected.name : null,
+      extras: allExtras,
+      drink: drinksSelected.length > 0 ? drinksSelected.map(d => d.name).join(", ") : null,
       observations: data.address || null,
       total: finalTotal,
       status: "pending" as const,
@@ -189,10 +217,14 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
       return;
     }
     
-    // Decrease stock after order is placed
+    // Decrease stock after order is placed - include both extras and drinks
+    const allOptionsForStock = [...extrasSelected, ...drinksSelected]
+      .filter(e => e.id)
+      .map(e => ({ id: e.id || "", quantity: 1 }));
+    
     await decreaseOrderStock(
       orderItems.map(i => ({ id: i.id, quantity: i.quantity })),
-      extrasSelected.map(e => ({ id: e.id || "", quantity: 1 })).filter(e => e.id)
+      allOptionsForStock
     );
 
     const encodedMessage = encodeURIComponent(message);
