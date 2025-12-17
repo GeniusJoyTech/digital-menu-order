@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, Edit2, Save, X, Eye, EyeOff, ChevronUp, ChevronDown, Filter, DollarSign, RotateCcw, Ban, Package } from "lucide-react";
-import { CheckoutStep, PricingRule, LinkedMenuItem } from "@/data/checkoutConfig";
+import { CheckoutStep, CheckoutStepOption, PricingRule, LinkedMenuItem } from "@/data/checkoutConfig";
 import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -141,7 +141,13 @@ export const CheckoutStepsManager = ({
 
   const handleSaveStep = () => {
     if (!editingStep) return;
-    updateLocalStep(editingStep);
+
+    const pending = takePendingStepExclusiveItem();
+    const stepToSave = pending
+      ? { ...editingStep, options: [...(editingStep.options || []), pending] }
+      : editingStep;
+
+    updateLocalStep(stepToSave);
     setEditingStep(null);
     toast.success("Etapa atualizada localmente. Clique em 'Salvar Configurações' para aplicar.");
   };
@@ -153,6 +159,9 @@ export const CheckoutStepsManager = ({
     }
 
     const id = `step-${Date.now()}`;
+    const pending = takePendingStepExclusiveItem();
+    const optionsWithPending = pending ? [...(newStep.options || []), pending] : (newStep.options || []);
+
     addLocalStep({
       id,
       type: newStep.type || "custom_select",
@@ -165,7 +174,7 @@ export const CheckoutStepsManager = ({
       showCondition: newStep.showCondition || "always",
       triggerItemIds: newStep.triggerItemIds || [],
       triggerCategoryIds: newStep.triggerCategoryIds || [],
-      options: newStep.options || [],
+      options: optionsWithPending,
       pricingRule: newStep.pricingRule,
       maxSelectionsEnabled: newStep.maxSelectionsEnabled,
       maxSelections: newStep.maxSelections,
@@ -641,7 +650,25 @@ export const CheckoutStepsManager = ({
   const [newStepItemName, setNewStepItemName] = useState("");
   const [newStepItemPrice, setNewStepItemPrice] = useState("");
   const [newStepItemTrackStock, setNewStepItemTrackStock] = useState(false);
-  
+
+  const takePendingStepExclusiveItem = (): CheckoutStepOption | null => {
+    const name = newStepItemName.trim();
+    if (!name) return null;
+
+    const item: CheckoutStepOption = {
+      id: `step-item-${Date.now()}`,
+      name,
+      price: parseFloat(newStepItemPrice) || 0,
+      trackStock: newStepItemTrackStock,
+    };
+
+    setNewStepItemName("");
+    setNewStepItemPrice("");
+    setNewStepItemTrackStock(false);
+
+    return item;
+  };
+
   // State for editing step-exclusive items
   const [editingStepItemId, setEditingStepItemId] = useState<string | null>(null);
   const [editStepItemName, setEditStepItemName] = useState("");

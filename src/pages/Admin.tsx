@@ -368,9 +368,9 @@ const Admin = () => {
                       )}
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-foreground text-sm">{option.name}</h3>
-                          {option.stock === 0 && (
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-foreground text-sm">{step.title} — {option.name}</h3>
+                        {option.stock === 0 && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">Esgotado</span>
                           )}
                         </div>
