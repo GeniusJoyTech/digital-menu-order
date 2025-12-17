@@ -4,7 +4,7 @@ import { useMenu } from "@/contexts/MenuContext";
 import { useDesign, CardLayout, CustomFont, DesignConfig } from "@/contexts/DesignContext";
 import { useCheckout } from "@/contexts/CheckoutContext";
 import { Navigate } from "react-router-dom";
-import { LogOut, Plus, Trash2, Edit2, Save, X, Upload, Image, Package, Minus, Palette, Settings, List, Layers, Type, ShoppingBag, RotateCcw } from "lucide-react";
+import { LogOut, Plus, Trash2, Edit2, Save, X, Upload, Image, Package, Minus, Palette, Settings, List, Layers, Type, ShoppingBag, RotateCcw, Download, FolderUp } from "lucide-react";
 import { MenuItem } from "@/data/menuData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { CategoryManager } from "@/components/admin/CategoryManager";
 import { CheckoutStepsManager } from "@/components/admin/CheckoutStepsManager";
 import { OrdersManager } from "@/components/admin/OrdersManager";
 import { DesignManager } from "@/components/admin/DesignManager";
+import { useConfigExport } from "@/hooks/useConfigService";
 
 
 const LAYOUT_OPTIONS: { value: CardLayout; label: string; description: string }[] = [
@@ -31,6 +32,7 @@ const Admin = () => {
   const { config, updateMenuItem, addMenuItem, deleteMenuItem, updateExtra, addExtra, deleteExtra, updateDrinkOption, addDrinkOption, deleteDrinkOption, addAcaiTurbineItem, removeAcaiTurbineItem, updateAcaiTurbineItem, updateCategories, resetToDefault } = useMenu();
   const { design, updateDesign, resetDesign, addCustomFont, removeCustomFont, getAllFonts } = useDesign();
   const { config: checkoutConfig, updateStep, addStep, deleteStep, reorderSteps, resetToDefault: resetCheckout } = useCheckout();
+  const { exportConfig, importConfig, isExporting, isImporting } = useConfigExport();
   
   const [activeTab, setActiveTab] = useState<TabType>("orders");
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -40,6 +42,15 @@ const Admin = () => {
   const [showAddExtra, setShowAddExtra] = useState(false);
   const [showAddDrink, setShowAddDrink] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      importConfig(file);
+    }
+    e.target.value = '';
+  };
 
   const handleSaveDesign = (newDesign: DesignConfig) => {
     updateDesign(newDesign);
@@ -125,13 +136,40 @@ const Admin = () => {
       <header className="bg-card border-b border-border sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="font-display text-2xl text-brand-pink">Administração</h1>
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Sair
-          </button>
+          <div className="flex items-center gap-2">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImportFile}
+              className="hidden"
+            />
+            <button
+              onClick={() => importInputRef.current?.click()}
+              disabled={isImporting}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors text-sm"
+              title="Importar configuração"
+            >
+              <FolderUp className="w-4 h-4" />
+              <span className="hidden sm:inline">{isImporting ? "Importando..." : "Importar"}</span>
+            </button>
+            <button
+              onClick={exportConfig}
+              disabled={isExporting}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors text-sm"
+              title="Exportar configuração"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">{isExporting ? "Exportando..." : "Exportar"}</span>
+            </button>
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sair</span>
+            </button>
+          </div>
         </div>
       </header>
 
