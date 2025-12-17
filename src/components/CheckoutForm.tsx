@@ -49,6 +49,8 @@ const CheckoutForm = ({ isTable, tableNumber, cartItems, onSubmit, onClose }: Ch
   const visibleSteps = useMemo(() => {
     return checkoutConfig.steps.filter(step => {
       if (!step.enabled) return false;
+      // Skip delivery step for table orders - they don't need address
+      if (isTable && step.type === "delivery") return false;
       if (isTable && !step.showForTable) return false;
       if (!isTable && step.skipForPickup && deliveryType === "pickup") return false;
       
