@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { useParams } from "react-router-dom";
 import { ShoppingBag, Plus, Minus, Trash2, Send, X } from "lucide-react";
 import { CartItem } from "@/data/menuData";
@@ -16,7 +16,7 @@ interface CartProps {
   onClearCart: () => void;
 }
 
-const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps) => {
+const Cart = forwardRef<HTMLDivElement, CartProps>(({ items, onUpdateQuantity, onRemoveItem, onClearCart }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const { config } = useMenu();
@@ -192,7 +192,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
   if (totalItems === 0 && !isOpen) return null;
 
   return (
-    <>
+    <div ref={ref}>
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(true)}
@@ -358,8 +358,10 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
           onClose={() => setShowCheckout(false)}
         />
       )}
-    </>
+    </div>
   );
-};
+});
+
+Cart.displayName = "Cart";
 
 export default Cart;
