@@ -24,6 +24,11 @@ export interface PricingRule {
   flatPrice: number; // Flat price after limit (used for "flat_after_limit")
 }
 
+export interface LinkedMenuItem {
+  itemId: string;
+  excludeFromStock: boolean; // When true, this item won't appear in stock management
+}
+
 export interface CheckoutStep {
   id: string;
   type: CheckoutStepType;
@@ -41,6 +46,7 @@ export interface CheckoutStep {
   pricingRule?: PricingRule; // Optional pricing rules for multi-select steps
   maxSelectionsEnabled?: boolean; // Whether to limit the number of selections
   maxSelections?: number; // Maximum number of selections allowed (when maxSelectionsEnabled is true)
+  linkedMenuItems?: LinkedMenuItem[]; // Menu items linked to this step
 }
 
 const STORAGE_KEY = "shakeyes_checkout_config";
