@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Navigate } from "react-router-dom";
-import { Lock, Mail, UserPlus } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 const Login = () => {
-  const { isAuthenticated, isAdmin, loading, signIn, signUp } = useAuth();
+  const { isAuthenticated, isAdmin, loading, signIn } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
 
   if (loading) {
     return (
@@ -29,22 +28,12 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      if (isSignUp) {
-        const { error } = await signUp(email, password);
-        if (error) {
-          toast.error(error.message || "Erro ao criar conta");
-        } else {
-          toast.success("Conta criada! Faça login para continuar.");
-          setIsSignUp(false);
-        }
+      const { error } = await signIn(email, password);
+      if (error) {
+        toast.error(error.message || "Email ou senha incorretos");
       } else {
-        const { error } = await signIn(email, password);
-        if (error) {
-          toast.error(error.message || "Email ou senha incorretos");
-        } else {
-          toast.success("Login realizado com sucesso!");
-          navigate("/admin");
-        }
+        toast.success("Login realizado com sucesso!");
+        navigate("/admin");
       }
     } catch (error) {
       toast.error("Erro ao processar requisição");
@@ -98,19 +87,8 @@ const Login = () => {
             disabled={isLoading}
             className="w-full py-3 rounded-xl bg-brand-pink text-primary-foreground font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {isLoading ? "Processando..." : isSignUp ? "Criar conta" : "Entrar"}
+            {isLoading ? "Processando..." : "Entrar"}
           </button>
-
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm text-brand-pink hover:underline flex items-center gap-1 justify-center w-full"
-            >
-              <UserPlus className="w-4 h-4" />
-              {isSignUp ? "Já tenho conta" : "Criar nova conta"}
-            </button>
-          </div>
 
           {isAuthenticated && !isAdmin && (
             <div className="text-center text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
