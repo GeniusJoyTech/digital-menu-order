@@ -338,8 +338,8 @@ export const CheckoutStepsManager = ({
       // Remove item
       newLinked = currentLinked.filter(l => l.itemId !== itemId);
     } else {
-      // Add item with excludeFromStock = true by default
-      newLinked = [...currentLinked, { itemId, excludeFromStock: true }];
+      // Add item with excludeFromStock = false by default (items are in stock by default)
+      newLinked = [...currentLinked, { itemId, excludeFromStock: false }];
     }
     
     if (isEditing && editingStep) {
@@ -710,7 +710,7 @@ export const CheckoutStepsManager = ({
             <label className="text-sm font-medium text-foreground">Itens do cardápio vinculados</label>
           </div>
           <p className="text-xs text-muted-foreground">
-            Selecione itens do cardápio para vincular a esta etapa. Itens marcados como "Excluir do estoque" não aparecerão no controle de estoque.
+            Selecione itens do cardápio para vincular a esta etapa.
           </p>
           
           <div className="max-h-48 overflow-y-auto space-y-1">
@@ -741,7 +741,7 @@ export const CheckoutStepsManager = ({
                           if (existingIndex >= 0) {
                             setNewStep({ ...newStep, linkedMenuItems: currentLinked.filter(l => l.itemId !== item.id) });
                           } else {
-                            setNewStep({ ...newStep, linkedMenuItems: [...currentLinked, { itemId: item.id, excludeFromStock: true }] });
+                            setNewStep({ ...newStep, linkedMenuItems: [...currentLinked, { itemId: item.id, excludeFromStock: false }] });
                           }
                         }
                       }}
@@ -751,30 +751,6 @@ export const CheckoutStepsManager = ({
                     <span className="text-xs text-muted-foreground">
                       {categories.find(c => c.id === item.category)?.name || item.category}
                     </span>
-                    
-                    {isLinked && (
-                      <label className="flex items-center gap-1 ml-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={linkedItem?.excludeFromStock ?? true}
-                          onChange={() => {
-                            if (isEditing && editingStep) {
-                              toggleExcludeFromStock(editingStep, item.id, true);
-                            } else if (!isEditing) {
-                              const currentLinked = newStep.linkedMenuItems || [];
-                              setNewStep({
-                                ...newStep,
-                                linkedMenuItems: currentLinked.map(l => 
-                                  l.itemId === item.id ? { ...l, excludeFromStock: !l.excludeFromStock } : l
-                                )
-                              });
-                            }
-                          }}
-                          className="w-3 h-3 rounded border-border"
-                        />
-                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">Excluir do estoque</span>
-                      </label>
-                    )}
                   </div>
                 );
               })
@@ -782,14 +758,9 @@ export const CheckoutStepsManager = ({
           </div>
           
           {(linkedItems || []).length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              <p className="text-xs text-brand-pink">
-                {(linkedItems || []).length} item(s) vinculado(s)
-              </p>
-              <span className="text-xs text-muted-foreground">
-                • {(linkedItems || []).filter(l => l.excludeFromStock).length} excluído(s) do estoque
-              </span>
-            </div>
+            <p className="text-xs text-brand-pink">
+              {(linkedItems || []).length} item(s) vinculado(s)
+            </p>
           )}
         </div>
 
