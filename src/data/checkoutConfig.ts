@@ -11,17 +11,17 @@ export interface CheckoutStepOption {
   name: string;
   price: number;
   stock?: number;
-  trackStock?: boolean;
+  trackStock?: boolean; // Whether this option should be tracked in stock management
 }
 
 export type PricingRuleType = "per_item" | "flat_after_limit" | "per_item_after_limit";
 
 export interface PricingRule {
   enabled: boolean;
-  freeItemsLimit: number;
+  freeItemsLimit: number; // Number of free items before charging
   ruleType: PricingRuleType;
-  pricePerItem: number;
-  flatPrice: number;
+  pricePerItem: number; // Price per item (used for "per_item" and "per_item_after_limit")
+  flatPrice: number; // Flat price after limit (used for "flat_after_limit")
 }
 
 export interface CheckoutStep {
@@ -33,15 +33,17 @@ export interface CheckoutStep {
   required: boolean;
   multiSelect: boolean;
   options: CheckoutStepOption[];
-  showForTable: boolean;
-  skipForPickup?: boolean;
-  showCondition: "always" | "specific_items" | "specific_categories" | "items_and_categories";
-  triggerItemIds?: string[];
-  triggerCategoryIds?: string[];
-  pricingRule?: PricingRule;
-  maxSelectionsEnabled?: boolean;
-  maxSelections?: number;
+  showForTable: boolean; // Whether to show this step for table orders
+  skipForPickup?: boolean; // Skip for pickup orders (only show for delivery)
+  showCondition: "always" | "specific_items" | "specific_categories" | "items_and_categories"; // When to show this step
+  triggerItemIds?: string[]; // Item IDs that trigger this step (when showCondition includes items)
+  triggerCategoryIds?: string[]; // Category IDs that trigger this step (when showCondition includes categories)
+  pricingRule?: PricingRule; // Optional pricing rules for multi-select steps
+  maxSelectionsEnabled?: boolean; // Whether to limit the number of selections
+  maxSelections?: number; // Maximum number of selections allowed (when maxSelectionsEnabled is true)
 }
+
+const STORAGE_KEY = "shakeyes_checkout_config";
 
 export const defaultCheckoutSteps: CheckoutStep[] = [
   {
@@ -76,7 +78,7 @@ export const defaultCheckoutSteps: CheckoutStep[] = [
     enabled: true,
     required: false,
     multiSelect: true,
-    options: [],
+    options: [], // Uses extras from MenuConfig
     showForTable: true,
     showCondition: "always",
   },
@@ -88,7 +90,7 @@ export const defaultCheckoutSteps: CheckoutStep[] = [
     enabled: true,
     required: false,
     multiSelect: false,
-    options: [],
+    options: [], // Uses drinkOptions from MenuConfig
     showForTable: true,
     showCondition: "always",
   },
@@ -99,13 +101,29 @@ export interface CheckoutConfig {
 }
 
 export const loadCheckoutConfig = (): CheckoutConfig => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return {
+        steps: parsed.steps || defaultCheckoutSteps,
+      };
+    }
+  } catch (error) {
+    console.error("Error loading checkout config:", error);
+  }
   return { steps: defaultCheckoutSteps };
 };
 
 export const saveCheckoutConfig = (config: CheckoutConfig): void => {
-  console.log("Checkout config saved to API");
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  } catch (error) {
+    console.error("Error saving checkout config:", error);
+  }
 };
 
 export const resetCheckoutConfig = (): CheckoutConfig => {
+  localStorage.removeItem(STORAGE_KEY);
   return { steps: defaultCheckoutSteps };
 };

@@ -1,11 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { MenuConfig } from "@/data/menuConfig";
+import { MenuConfig, loadMenuConfig, saveMenuConfig, resetMenuConfig } from "@/data/menuConfig";
 import { MenuItem } from "@/data/menuData";
-import { ConfigService } from "@/services/configService";
 
 interface MenuContextType {
   config: MenuConfig;
-  loading: boolean;
   updateMenuItem: (item: MenuItem) => void;
   addMenuItem: (item: MenuItem) => void;
   deleteMenuItem: (id: string) => void;
@@ -21,178 +19,124 @@ interface MenuContextType {
   updateAcaiTurbineItem: (index: number, item: { name: string; stock?: number }) => void;
   updateCategories: (categories: { id: string; name: string; color: string }[]) => void;
   resetToDefault: () => void;
-  refetch: () => Promise<void>;
 }
 
 const MenuContext = createContext<MenuContextType | undefined>(undefined);
 
-const emptyConfig: MenuConfig = {
-  menuItems: [],
-  extras: [],
-  categories: [],
-  drinkOptions: [],
-  acaiTurbine: [],
-};
-
 export const MenuProvider = ({ children }: { children: ReactNode }) => {
-  const [config, setConfig] = useState<MenuConfig>(emptyConfig);
-  const [loading, setLoading] = useState(true);
-
-  const loadConfig = async () => {
-    try {
-      setLoading(true);
-      const data = await ConfigService.getMenuConfig();
-      setConfig(data);
-    } catch (error) {
-      console.error("Error loading menu config:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [config, setConfig] = useState<MenuConfig>(loadMenuConfig);
 
   useEffect(() => {
-    loadConfig();
-  }, []);
-
-  const saveConfig = async (newConfig: MenuConfig) => {
-    setConfig(newConfig);
-    try {
-      await ConfigService.saveMenuConfig(newConfig);
-    } catch (error) {
-      console.error("Error saving menu config:", error);
-    }
-  };
+    saveMenuConfig(config);
+  }, [config]);
 
   const updateMenuItem = (item: MenuItem) => {
-    const newConfig = {
-      ...config,
-      menuItems: config.menuItems.map((i) => (i.id === item.id ? item : i)),
-    };
-    saveConfig(newConfig);
+    setConfig((prev) => ({
+      ...prev,
+      menuItems: prev.menuItems.map((i) => (i.id === item.id ? item : i)),
+    }));
   };
 
   const addMenuItem = (item: MenuItem) => {
-    const newConfig = {
-      ...config,
-      menuItems: [...config.menuItems, item],
-    };
-    saveConfig(newConfig);
+    setConfig((prev) => ({
+      ...prev,
+      menuItems: [...prev.menuItems, item],
+    }));
   };
 
   const deleteMenuItem = (id: string) => {
-    const newConfig = {
-      ...config,
-      menuItems: config.menuItems.filter((i) => i.id !== id),
-    };
-    saveConfig(newConfig);
+    setConfig((prev) => ({
+      ...prev,
+      menuItems: prev.menuItems.filter((i) => i.id !== id),
+    }));
   };
 
   const updateExtra = (extra: { id: string; name: string; price: number; stock?: number }) => {
-    const newConfig = {
-      ...config,
-      extras: config.extras.map((e) => (e.id === extra.id ? extra : e)),
-    };
-    saveConfig(newConfig);
+    setConfig((prev) => ({
+      ...prev,
+      extras: prev.extras.map((e) => (e.id === extra.id ? extra : e)),
+    }));
   };
 
   const addExtra = (extra: { id: string; name: string; price: number; stock?: number }) => {
-    const newConfig = {
-      ...config,
-      extras: [...config.extras, extra],
-    };
-    saveConfig(newConfig);
+    setConfig((prev) => ({
+      ...prev,
+      extras: [...prev.extras, extra],
+    }));
   };
 
   const deleteExtra = (id: string) => {
-    const newConfig = {
-      ...config,
-      extras: config.extras.filter((e) => e.id !== id),
-    };
-    saveConfig(newConfig);
+    setConfig((prev) => ({
+      ...prev,
+      extras: prev.extras.filter((e) => e.id !== id),
+    }));
   };
 
   const updateDrinkOption = (drink: { id: string; name: string; price: number; stock?: number }) => {
-    const newConfig = {
-      ...config,
-      drinkOptions: config.drinkOptions.map((d) => (d.id === drink.id ? drink : d)),
-    };
-    saveConfig(newConfig);
+    setConfig((prev) => ({
+      ...prev,
+      drinkOptions: prev.drinkOptions.map((d) => (d.id === drink.id ? drink : d)),
+    }));
   };
 
   const addDrinkOption = (drink: { id: string; name: string; price: number; stock?: number }) => {
-    const newConfig = {
-      ...config,
-      drinkOptions: [...config.drinkOptions, drink],
-    };
-    saveConfig(newConfig);
+    setConfig((prev) => ({
+      ...prev,
+      drinkOptions: [...prev.drinkOptions, drink],
+    }));
   };
 
   const deleteDrinkOption = (id: string) => {
-    const newConfig = {
-      ...config,
-      drinkOptions: config.drinkOptions.filter((d) => d.id !== id),
-    };
-    saveConfig(newConfig);
+    setConfig((prev) => ({
+      ...prev,
+      drinkOptions: prev.drinkOptions.filter((d) => d.id !== id),
+    }));
   };
 
   const updateAcaiTurbine = (items: { name: string; stock?: number }[]) => {
-    const newConfig = {
-      ...config,
+    setConfig((prev) => ({
+      ...prev,
       acaiTurbine: items,
-    };
-    saveConfig(newConfig);
+    }));
   };
 
   const addAcaiTurbineItem = (item: { name: string; stock?: number }) => {
-    const newConfig = {
-      ...config,
-      acaiTurbine: [...config.acaiTurbine, item],
-    };
-    saveConfig(newConfig);
+    setConfig((prev) => ({
+      ...prev,
+      acaiTurbine: [...prev.acaiTurbine, item],
+    }));
   };
 
   const removeAcaiTurbineItem = (index: number) => {
-    const newConfig = {
-      ...config,
-      acaiTurbine: config.acaiTurbine.filter((_, i) => i !== index),
-    };
-    saveConfig(newConfig);
+    setConfig((prev) => ({
+      ...prev,
+      acaiTurbine: prev.acaiTurbine.filter((_, i) => i !== index),
+    }));
   };
 
   const updateAcaiTurbineItem = (index: number, item: { name: string; stock?: number }) => {
-    const newConfig = {
-      ...config,
-      acaiTurbine: config.acaiTurbine.map((i, idx) => (idx === index ? item : i)),
-    };
-    saveConfig(newConfig);
+    setConfig((prev) => ({
+      ...prev,
+      acaiTurbine: prev.acaiTurbine.map((i, idx) => (idx === index ? item : i)),
+    }));
   };
 
   const updateCategories = (categories: { id: string; name: string; color: string }[]) => {
-    const newConfig = {
-      ...config,
+    setConfig((prev) => ({
+      ...prev,
       categories,
-    };
-    saveConfig(newConfig);
+    }));
   };
 
-  const resetToDefault = async () => {
-    try {
-      const defaultConfig = await ConfigService.resetMenuConfig();
-      setConfig(defaultConfig);
-    } catch (error) {
-      console.error("Error resetting menu config:", error);
-    }
-  };
-
-  const refetch = async () => {
-    await loadConfig();
+  const resetToDefault = () => {
+    const defaultConfig = resetMenuConfig();
+    setConfig(defaultConfig);
   };
 
   return (
     <MenuContext.Provider
       value={{
         config,
-        loading,
         updateMenuItem,
         addMenuItem,
         deleteMenuItem,
@@ -208,7 +152,6 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
         updateAcaiTurbineItem,
         updateCategories,
         resetToDefault,
-        refetch,
       }}
     >
       {children}
