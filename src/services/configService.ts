@@ -1,18 +1,7 @@
-/**
- * Configuration Service
- * 
- * This service manages all JSON configuration data.
- * Currently uses localStorage, but is designed to easily switch to an external API.
- * 
- * To connect to an external backend, replace the localStorage calls with fetch() calls
- * to your API endpoint.
- */
+import { MenuConfig } from "@/data/menuConfig";
+import { CheckoutConfig } from "@/data/checkoutConfig";
+import { Order } from "@/data/ordersConfig";
 
-import { MenuConfig, loadMenuConfig, saveMenuConfig, resetMenuConfig } from "@/data/menuConfig";
-import { CheckoutConfig, loadCheckoutConfig, saveCheckoutConfig, resetCheckoutConfig } from "@/data/checkoutConfig";
-import { Order, loadOrders, saveOrder, updateOrderStatus, deleteOrder } from "@/data/ordersConfig";
-
-// Design config interface
 export interface DesignConfig {
   storeName: string;
   storeDescription: string;
@@ -38,9 +27,6 @@ export interface DesignConfig {
   customFonts: Array<{ name: string; url: string }>;
 }
 
-const DESIGN_STORAGE_KEY = "shakeyes_design_config";
-
-// Default design config
 const defaultDesignConfig: DesignConfig = {
   storeName: "MilkShakes",
   storeDescription: "Os melhores milkshakes da cidade",
@@ -66,101 +52,191 @@ const defaultDesignConfig: DesignConfig = {
   customFonts: [],
 };
 
-// ===========================================
-// CONFIGURATION API
-// ===========================================
-// Replace these functions with API calls when connecting to external backend
+async function apiRequest<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.statusText}`);
+  }
+  
+  if (response.status === 204) {
+    return {} as T;
+  }
+  
+  return response.json();
+}
 
 export const ConfigService = {
-  // ----- MENU CONFIG -----
   async getMenuConfig(): Promise<MenuConfig> {
-    // TODO: Replace with: return fetch('/api/config/menu').then(r => r.json())
-    return loadMenuConfig();
+    try {
+      return await apiRequest<MenuConfig>('/api/menu-config');
+    } catch (error) {
+      console.error("Error fetching menu config:", error);
+      return {
+        menuItems: [],
+        extras: [],
+        categories: [],
+        drinkOptions: [],
+        acaiTurbine: [],
+      };
+    }
   },
 
   async saveMenuConfig(config: MenuConfig): Promise<void> {
-    // TODO: Replace with: return fetch('/api/config/menu', { method: 'PUT', body: JSON.stringify(config) })
-    saveMenuConfig(config);
+    try {
+      await apiRequest('/api/menu-config', {
+        method: 'PUT',
+        body: JSON.stringify(config),
+      });
+    } catch (error) {
+      console.error("Error saving menu config:", error);
+      throw error;
+    }
   },
 
   async resetMenuConfig(): Promise<MenuConfig> {
-    // TODO: Replace with: return fetch('/api/config/menu/reset', { method: 'POST' }).then(r => r.json())
-    return resetMenuConfig();
+    const defaultConfig: MenuConfig = {
+      menuItems: [],
+      extras: [],
+      categories: [],
+      drinkOptions: [],
+      acaiTurbine: [],
+    };
+    await this.saveMenuConfig(defaultConfig);
+    return defaultConfig;
   },
 
-  // ----- CHECKOUT CONFIG -----
   async getCheckoutConfig(): Promise<CheckoutConfig> {
-    // TODO: Replace with: return fetch('/api/config/checkout').then(r => r.json())
-    return loadCheckoutConfig();
+    try {
+      return await apiRequest<CheckoutConfig>('/api/checkout-config');
+    } catch (error) {
+      console.error("Error fetching checkout config:", error);
+      return { steps: [] };
+    }
   },
 
   async saveCheckoutConfig(config: CheckoutConfig): Promise<void> {
-    // TODO: Replace with: return fetch('/api/config/checkout', { method: 'PUT', body: JSON.stringify(config) })
-    saveCheckoutConfig(config);
+    try {
+      await apiRequest('/api/checkout-config', {
+        method: 'PUT',
+        body: JSON.stringify(config),
+      });
+    } catch (error) {
+      console.error("Error saving checkout config:", error);
+      throw error;
+    }
   },
 
   async resetCheckoutConfig(): Promise<CheckoutConfig> {
-    // TODO: Replace with: return fetch('/api/config/checkout/reset', { method: 'POST' }).then(r => r.json())
-    return resetCheckoutConfig();
+    const defaultConfig: CheckoutConfig = { steps: [] };
+    await this.saveCheckoutConfig(defaultConfig);
+    return defaultConfig;
   },
 
-  // ----- DESIGN CONFIG -----
   async getDesignConfig(): Promise<DesignConfig> {
-    // TODO: Replace with: return fetch('/api/config/design').then(r => r.json())
     try {
-      const stored = localStorage.getItem(DESIGN_STORAGE_KEY);
-      if (stored) {
-        return { ...defaultDesignConfig, ...JSON.parse(stored) };
-      }
+      const config = await apiRequest<DesignConfig>('/api/design-config');
+      return { ...defaultDesignConfig, ...config };
     } catch (error) {
-      console.error("Error loading design config:", error);
+      console.error("Error fetching design config:", error);
+      return defaultDesignConfig;
     }
-    return defaultDesignConfig;
   },
 
   async saveDesignConfig(config: DesignConfig): Promise<void> {
-    // TODO: Replace with: return fetch('/api/config/design', { method: 'PUT', body: JSON.stringify(config) })
     try {
-      localStorage.setItem(DESIGN_STORAGE_KEY, JSON.stringify(config));
+      await apiRequest('/api/design-config', {
+        method: 'PUT',
+        body: JSON.stringify(config),
+      });
     } catch (error) {
       console.error("Error saving design config:", error);
+      throw error;
     }
   },
 
   async resetDesignConfig(): Promise<DesignConfig> {
-    // TODO: Replace with: return fetch('/api/config/design/reset', { method: 'POST' }).then(r => r.json())
-    localStorage.removeItem(DESIGN_STORAGE_KEY);
+    await this.saveDesignConfig(defaultDesignConfig);
     return defaultDesignConfig;
   },
 
-  // ----- ORDERS -----
   async getOrders(): Promise<Order[]> {
-    // TODO: Replace with: return fetch('/api/orders').then(r => r.json())
-    return loadOrders();
+    try {
+      const orders = await apiRequest<any[]>('/api/orders');
+      return orders.map(order => ({
+        id: order.orderId,
+        createdAt: order.createdAt,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone || "",
+        deliveryType: order.deliveryType,
+        tableNumber: order.tableNumber,
+        address: order.address,
+        items: order.items,
+        extras: order.extras || [],
+        drink: order.drink,
+        total: parseFloat(order.total),
+        status: order.status,
+      }));
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      return [];
+    }
   },
 
   async createOrder(order: Order): Promise<void> {
-    // TODO: Replace with: return fetch('/api/orders', { method: 'POST', body: JSON.stringify(order) })
-    saveOrder(order);
+    try {
+      await apiRequest('/api/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          orderId: order.id,
+          customerName: order.customerName,
+          customerPhone: order.customerPhone || "",
+          deliveryType: order.deliveryType,
+          tableNumber: order.tableNumber,
+          address: order.address,
+          items: order.items,
+          extras: order.extras || [],
+          drink: order.drink,
+          total: order.total.toString(),
+          status: order.status,
+        }),
+      });
+    } catch (error) {
+      console.error("Error creating order:", error);
+      throw error;
+    }
   },
 
   async updateOrderStatus(orderId: string, status: Order["status"]): Promise<void> {
-    // TODO: Replace with: return fetch(`/api/orders/${orderId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) })
-    updateOrderStatus(orderId, status);
+    try {
+      await apiRequest(`/api/orders/${orderId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      throw error;
+    }
   },
 
   async deleteOrder(orderId: string): Promise<void> {
-    // TODO: Replace with: return fetch(`/api/orders/${orderId}`, { method: 'DELETE' })
-    deleteOrder(orderId);
+    try {
+      await apiRequest(`/api/orders/${orderId}`, {
+        method: 'DELETE',
+      });
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      throw error;
+    }
   },
 
-  // ----- IMAGES -----
-  // Placeholder for image management - implement when connecting external storage
   async uploadImage(file: File): Promise<string> {
-    // TODO: Replace with actual upload to your image service
-    // Example: return fetch('/api/images', { method: 'POST', body: formData }).then(r => r.json()).then(d => d.url)
-    
-    // For now, return a base64 data URL (works locally but not ideal for production)
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
@@ -170,11 +246,9 @@ export const ConfigService = {
   },
 
   async deleteImage(imageUrl: string): Promise<void> {
-    // TODO: Replace with: return fetch(`/api/images?url=${encodeURIComponent(imageUrl)}`, { method: 'DELETE' })
     console.log("Image deletion not implemented:", imageUrl);
   },
 
-  // ----- EXPORT/IMPORT ALL CONFIG -----
   async exportAllConfig(): Promise<string> {
     const [menuConfig, checkoutConfig, designConfig, orders] = await Promise.all([
       this.getMenuConfig(),
@@ -208,7 +282,6 @@ export const ConfigService = {
       if (config.design) {
         await this.saveDesignConfig(config.design);
       }
-      // Note: Orders are typically not imported to avoid duplicates
     } catch (error) {
       console.error("Error importing config:", error);
       throw new Error("Arquivo JSON inválido");
@@ -216,6 +289,5 @@ export const ConfigService = {
   },
 };
 
-// Export types for use in components
 export type { MenuConfig, CheckoutConfig, Order };
 export { defaultDesignConfig };
