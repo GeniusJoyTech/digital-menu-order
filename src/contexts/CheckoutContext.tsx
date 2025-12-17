@@ -114,10 +114,17 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
   // Sync all steps to Supabase (used by save button)
   const syncAllSteps = async (steps: CheckoutStep[]) => {
     try {
+      console.log("syncAllSteps called with", steps.length, "steps");
+      
       // Get existing steps from DB
-      const { data: existingSteps } = await supabase
+      const { data: existingSteps, error: fetchStepsError } = await supabase
         .from("checkout_steps")
         .select("id");
+      
+      if (fetchStepsError) {
+        console.error("Error fetching existing steps:", fetchStepsError);
+        throw fetchStepsError;
+      }
       
       const existingIds = new Set((existingSteps || []).map(s => s.id));
       const newStepIds = new Set(steps.map(s => s.id));
@@ -125,107 +132,93 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
       // Delete steps that were removed
       const stepsToDelete = [...existingIds].filter(id => !newStepIds.has(id));
       if (stepsToDelete.length > 0) {
-        await supabase
+        const { error: deleteError } = await supabase
           .from("checkout_steps")
           .delete()
           .in("id", stepsToDelete);
+        if (deleteError) console.error("Error deleting steps:", deleteError);
       }
 
       // Upsert all steps
       for (let i = 0; i < steps.length; i++) {
         const step = steps[i];
+        console.log(`Processing step ${i}: ${step.title} (${step.id})`);
         
-        // Check if step exists
-        if (existingIds.has(step.id)) {
-          // Update existing step
-          await supabase
-            .from("checkout_steps")
-            .update({
-              title: step.title,
-              type: step.type,
-              enabled: step.enabled,
-              required: step.required,
-              show_condition: step.showCondition,
-              trigger_item_ids: step.triggerItemIds || [],
-              trigger_category_ids: step.triggerCategoryIds || [],
-              max_selections_enabled: step.maxSelectionsEnabled,
-              max_selections: step.maxSelections,
-              pricing_rule: step.pricingRule ? JSON.parse(JSON.stringify(step.pricingRule)) : null,
-              sort_order: i,
-            })
-            .eq("id", step.id);
-        } else {
-          // Insert new step
-          await supabase
-            .from("checkout_steps")
-            .insert({
-              id: step.id,
-              title: step.title,
-              type: step.type,
-              enabled: step.enabled,
-              required: step.required,
-              show_condition: step.showCondition,
-              trigger_item_ids: step.triggerItemIds || [],
-              trigger_category_ids: step.triggerCategoryIds || [],
-              max_selections_enabled: step.maxSelectionsEnabled,
-              max_selections: step.maxSelections,
-              pricing_rule: step.pricingRule ? JSON.parse(JSON.stringify(step.pricingRule)) : null,
-              sort_order: i,
-            });
+        const stepData = {
+          id: step.id,
+          title: step.title,
+          type: step.type,
+          enabled: step.enabled,
+          required: step.required,
+          show_condition: step.showCondition,
+          trigger_item_ids: step.triggerItemIds || [],
+          trigger_category_ids: step.triggerCategoryIds || [],
+          max_selections_enabled: step.maxSelectionsEnabled,
+          max_selections: step.maxSelections,
+          pricing_rule: step.pricingRule ? JSON.parse(JSON.stringify(step.pricingRule)) : null,
+          sort_order: i,
+        };
+
+        // Use upsert instead of separate insert/update
+        const { error: stepError } = await supabase
+          .from("checkout_steps")
+          .upsert(stepData, { onConflict: "id" });
+
+        if (stepError) {
+          console.error("Error upserting step:", step.title, stepError);
+          throw stepError;
         }
 
         // Sync options for this step
-        // Get existing options
-        const { data: existingOptions } = await supabase
+        const { data: existingOptions, error: fetchOptionsError } = await supabase
           .from("checkout_step_options")
           .select("id")
           .eq("step_id", step.id);
         
+        if (fetchOptionsError) {
+          console.error("Error fetching options:", fetchOptionsError);
+        }
+        
         const existingOptionIds = new Set((existingOptions || []).map(o => o.id));
-        const newOptionIds = new Set(step.options.map(o => o.id));
+        const newOptionIds = new Set((step.options || []).map(o => o.id));
 
         // Delete removed options
         const optionsToDelete = [...existingOptionIds].filter(id => !newOptionIds.has(id));
         if (optionsToDelete.length > 0) {
-          await supabase
+          const { error: deleteOptsError } = await supabase
             .from("checkout_step_options")
             .delete()
             .in("id", optionsToDelete);
+          if (deleteOptsError) console.error("Error deleting options:", deleteOptsError);
         }
 
         // Upsert options
-        for (let j = 0; j < step.options.length; j++) {
+        for (let j = 0; j < (step.options || []).length; j++) {
           const opt = step.options[j];
+          console.log(`  Processing option ${j}: ${opt.name} (trackStock: ${opt.trackStock})`);
           
-          if (existingOptionIds.has(opt.id)) {
-            // Update
-            await supabase
-              .from("checkout_step_options")
-              .update({
-                name: opt.name,
-                price: opt.price,
-                stock: opt.stock ?? null,
-                track_stock: opt.trackStock || false,
-                sort_order: j,
-              })
-              .eq("id", opt.id);
-          } else {
-            // Insert
-            await supabase
-              .from("checkout_step_options")
-              .insert({
-                id: opt.id,
-                step_id: step.id,
-                name: opt.name,
-                price: opt.price,
-                stock: opt.stock ?? null,
-                track_stock: opt.trackStock || false,
-                sort_order: j,
-              });
+          const optionData = {
+            id: opt.id,
+            step_id: step.id,
+            name: opt.name,
+            price: opt.price,
+            stock: opt.stock ?? null,
+            track_stock: opt.trackStock || false,
+            sort_order: j,
+          };
+          
+          const { error: optError } = await supabase
+            .from("checkout_step_options")
+            .upsert(optionData, { onConflict: "id" });
+
+          if (optError) {
+            console.error("Error upserting option:", opt.name, optError);
+            throw optError;
           }
         }
       }
 
+      console.log("syncAllSteps completed successfully");
       setConfig({ steps });
     } catch (error) {
       console.error("Error syncing checkout steps:", error);
