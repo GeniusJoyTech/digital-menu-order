@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { format, startOfDay, addDays, subDays, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import jsPDF from "jspdf";
+import { restoreStock } from "@/services/stockService";
 
 export const OrdersManager = () => {
   const [allOrders, setAllOrders] = useState<Order[]>([]);
@@ -291,6 +292,11 @@ export const OrdersManager = () => {
   };
 
   const handleCancel = (orderId: string) => {
+    const order = allOrders.find(o => o.id === orderId);
+    if (order && order.status !== "cancelled") {
+      // Restore stock when cancelling
+      restoreStock(order);
+    }
     updateOrderStatus(orderId, "cancelled");
     setAllOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: "cancelled" } : o));
   };

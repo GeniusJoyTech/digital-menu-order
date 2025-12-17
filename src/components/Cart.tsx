@@ -7,6 +7,7 @@ import { useCheckout } from "@/contexts/CheckoutContext";
 import { cn } from "@/lib/utils";
 import CheckoutForm, { CheckoutData } from "./CheckoutForm";
 import { saveOrder, Order } from "@/data/ordersConfig";
+import { decreaseStock } from "@/services/stockService";
 
 interface CartProps {
   items: CartItem[];
@@ -175,6 +176,9 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
       status: "pending",
     };
     saveOrder(order);
+    
+    // Decrease stock after order is placed
+    decreaseStock(order);
 
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
