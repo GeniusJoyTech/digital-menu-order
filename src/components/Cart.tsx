@@ -129,35 +129,36 @@ const Cart = ({ items, onRemoveItem, onClearCart }: CartProps) => {
     let message = "";
     
     if (isTable) {
-      message = `🍦 *NOVO PEDIDO - MESA ${tableNumber}*\n`;
+      message = `*NOVO PEDIDO - MESA ${tableNumber}*\n`;
     } else if (data.deliveryType === "pickup") {
-      message = `🍦 *NOVO PEDIDO - RETIRADA NA LOJA*\n`;
+      message = `*NOVO PEDIDO - RETIRADA NA LOJA*\n`;
     } else {
-      message = `🍦 *NOVO PEDIDO - DELIVERY*\n`;
+      message = `*NOVO PEDIDO - DELIVERY*\n`;
     }
     
-    message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `📞 *Telefone:* ${data.customerPhone}\n`;
+    message += `--------------------------------\n`;
+    message += `Telefone: ${data.customerPhone}\n`;
     
     if (data.deliveryType === "delivery" && data.address) {
-      message += `📍 *Endereço:* ${data.address}\n`;
+      message += `Endereco: ${data.address}\n`;
     }
     
-    message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `📋 *ITENS:*\n\n`;
+    message += `--------------------------------\n\n`;
+    message += `*ITENS:*\n\n`;
     
     // Build items message - show each instance with its recipient name
-    items.forEach((item) => {
+    items.forEach((item, index) => {
       const recipientName = data.recipientNames?.[item.instanceId] || data.globalRecipientName || "";
-      message += `• ${item.name} (${item.selectedSize})\n`;
-      message += `   👤 ${recipientName}\n`;
-      message += `   R$ ${item.selectedPrice.toFixed(2).replace(".", ",")}\n`;
+      message += `${index + 1}. ${item.name} (${item.selectedSize})\n`;
+      message += `   Nome: ${recipientName}\n`;
+      message += `   Valor: R$ ${item.selectedPrice.toFixed(2).replace(".", ",")}\n`;
       
       // Show extras for this specific instance
       const itemExtras = extrasSelected.filter(e => e.instanceId === item.instanceId);
       if (itemExtras.length > 0) {
         itemExtras.forEach(extra => {
-          message += `   ⚡ ${extra.name}${extra.price > 0 ? ` (+R$ ${extra.price.toFixed(2).replace(".", ",")})` : ""}\n`;
+          const priceStr = extra.price > 0 ? ` (+R$ ${extra.price.toFixed(2).replace(".", ",")})` : "";
+          message += `   + ${extra.name}${priceStr}\n`;
         });
       }
       
@@ -165,22 +166,23 @@ const Cart = ({ items, onRemoveItem, onClearCart }: CartProps) => {
       const itemDrinks = drinksSelected.filter(d => d.instanceId === item.instanceId);
       if (itemDrinks.length > 0) {
         itemDrinks.forEach(drink => {
-          message += `   🥤 ${drink.name}${drink.price > 0 ? ` (+R$ ${drink.price.toFixed(2).replace(".", ",")})` : ""}\n`;
+          const priceStr = drink.price > 0 ? ` (+R$ ${drink.price.toFixed(2).replace(".", ",")})` : "";
+          message += `   + ${drink.name}${priceStr}\n`;
         });
       }
       
       message += `\n`;
     });
     
-    message += `━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `💰 *TOTAL: R$ ${finalTotal.toFixed(2).replace(".", ",")}*\n`;
+    message += `--------------------------------\n`;
+    message += `*TOTAL: R$ ${finalTotal.toFixed(2).replace(".", ",")}*\n`;
     
     if (isTable) {
-      message += `📍 *Mesa:* ${tableNumber}`;
+      message += `Mesa: ${tableNumber}`;
     } else if (data.deliveryType === "pickup") {
-      message += `🏪 *Retirada na loja*`;
+      message += `Retirada na loja`;
     } else {
-      message += `🛵 *Delivery*`;
+      message += `Delivery`;
     }
 
     // Prepare order items with IDs for stock tracking
