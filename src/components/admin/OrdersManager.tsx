@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Phone, MapPin, ShoppingBag, Trash2, Check, X, MessageCircle, Copy, ChevronLeft, ChevronRight, Calendar, Download, ChefHat, Truck, PackageCheck } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Phone, MapPin, ShoppingBag, Trash2, Check, X, MessageCircle, Copy, ChevronLeft, ChevronRight, Calendar, Download, ChefHat, Truck, PackageCheck, RotateCcw } from "lucide-react";
 import { Order, loadOrders, updateOrderStatus, deleteOrder, deleteOldOrders } from "@/data/ordersConfig";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -12,16 +12,17 @@ export const OrdersManager = () => {
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  useEffect(() => {
-    const loadOrdersData = () => {
-      setAllOrders(loadOrders());
-    };
-    loadOrdersData();
-    
-    // Reload orders every 10 seconds
-    const interval = setInterval(loadOrdersData, 10000);
-    return () => clearInterval(interval);
+  const refreshOrders = useCallback(() => {
+    setAllOrders(loadOrders());
   }, []);
+
+  useEffect(() => {
+    refreshOrders();
+
+    // Reload orders every 30 seconds
+    const interval = setInterval(refreshOrders, 30000);
+    return () => clearInterval(interval);
+  }, [refreshOrders]);
 
   // Filter orders for selected date
   const filteredOrders = allOrders.filter(order => {
@@ -468,17 +469,27 @@ ${drinkText}
       </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <button
+          onClick={() => {
+            refreshOrders();
+            toast.success("Pedidos atualizados!");
+          }}
+          className="w-full py-2 rounded-lg bg-muted text-foreground text-sm font-medium hover:bg-muted/80 transition-colors flex items-center justify-center gap-2"
+        >
+          <RotateCcw className="w-4 h-4" />
+          Atualizar
+        </button>
         <button
           onClick={handleDownloadDayPDF}
-          className="flex-1 py-2 rounded-lg bg-brand-pink/10 text-brand-pink text-sm font-medium hover:bg-brand-pink/20 transition-colors flex items-center justify-center gap-2"
+          className="w-full py-2 rounded-lg bg-brand-pink/10 text-brand-pink text-sm font-medium hover:bg-brand-pink/20 transition-colors flex items-center justify-center gap-2"
         >
           <Download className="w-4 h-4" />
           PDF do dia
         </button>
         <button
           onClick={handleDownloadPDF}
-          className="flex-1 py-2 rounded-lg bg-muted text-foreground text-sm font-medium hover:bg-muted/80 transition-colors flex items-center justify-center gap-2"
+          className="w-full py-2 rounded-lg bg-muted text-foreground text-sm font-medium hover:bg-muted/80 transition-colors flex items-center justify-center gap-2"
         >
           <Download className="w-4 h-4" />
           PDF completo
