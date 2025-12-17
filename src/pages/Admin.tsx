@@ -28,7 +28,7 @@ const LAYOUT_OPTIONS: { value: CardLayout; label: string; description: string }[
 type TabType = "orders" | "items" | "categories" | "checkout" | "stock" | "design";
 
 const Admin = () => {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, isAdmin, loading, signOut } = useAuth();
   const { config, updateMenuItem, addMenuItem, deleteMenuItem, updateExtra, addExtra, deleteExtra, updateDrinkOption, addDrinkOption, deleteDrinkOption, addAcaiTurbineItem, removeAcaiTurbineItem, updateAcaiTurbineItem, updateCategories, resetToDefault, reloadConfig: reloadMenuConfig } = useMenu();
   const { design, updateDesign, resetDesign, addCustomFont, removeCustomFont, getAllFonts } = useDesign();
   const { config: checkoutConfig, updateStep, addStep, deleteStep, reorderSteps, resetToDefault: resetCheckout, removeMenuItemFromSteps, reloadConfig: reloadCheckoutConfig } = useCheckout();
@@ -56,7 +56,15 @@ const Admin = () => {
     updateDesign(newDesign);
   };
 
-  if (!isAuthenticated) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-brand-pink">Carregando...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !isAdmin) {
     return <Navigate to="/login" replace />;
   }
 
@@ -165,7 +173,7 @@ const Admin = () => {
               <span className="hidden sm:inline">{isExporting ? "Exportando..." : "Exportar"}</span>
             </button>
             <button
-              onClick={logout}
+              onClick={signOut}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-pink text-primary-foreground hover:opacity-90 transition-colors"
             >
               <LogOut className="w-4 h-4" />
