@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { DesignConfig, CardLayout, CustomFont, SocialLink } from "@/contexts/DesignContext";
 import { ColorPicker } from "./ColorPicker";
+import { UserSettings } from "./UserSettings";
 
 const LAYOUT_OPTIONS: { value: CardLayout; label: string; description: string }[] = [
   { value: "left-filled", label: "Imagem à esquerda (Preenchido)", description: "Card com fundo colorido e imagem à esquerda" },
@@ -96,7 +97,8 @@ export const DesignManager = ({
 
   return (
     <div className="space-y-6">
-      {/* Unsaved Changes Warning */}
+      {/* User Settings */}
+      <UserSettings />
       {hasUnsavedChanges && (
         <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
           <span className="text-sm text-amber-600 font-medium">

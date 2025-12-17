@@ -65,15 +65,28 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
         color: cat.color || "#ec4899",
       }));
 
-      const menuItems: MenuItem[] = (itemsData || []).map(item => ({
-        id: item.id,
-        name: item.name,
-        description: item.description || "",
-        prices: [{ size: "Único", price: Number(item.price) }],
-        category: item.category_id || "",
-        image: item.image_url || "/placeholder.svg",
-        stock: item.stock ?? undefined,
-      }));
+      const menuItems: MenuItem[] = (itemsData || []).map(item => {
+        // Parse prices_json if available, otherwise fall back to single price
+        let prices: { size: string; price: number }[] = [];
+        if (item.prices_json && Array.isArray(item.prices_json) && item.prices_json.length > 0) {
+          prices = (item.prices_json as { size: string; price: number }[]).map(p => ({
+            size: p.size || "Único",
+            price: Number(p.price) || 0
+          }));
+        } else {
+          prices = [{ size: "Único", price: Number(item.price) }];
+        }
+        
+        return {
+          id: item.id,
+          name: item.name,
+          description: item.description || "",
+          prices,
+          category: item.category_id || "",
+          image: item.image_url || "/placeholder.svg",
+          stock: item.stock ?? undefined,
+        };
+      });
 
       setConfig(prev => ({
         ...prev,
@@ -108,6 +121,7 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
         name: item.name,
         description: item.description,
         price: item.prices[0]?.price || 0,
+        prices_json: item.prices,
         category_id: item.category || null,
         image_url: item.image,
         stock: item.stock ?? null,
@@ -123,6 +137,7 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
         name: item.name,
         description: item.description,
         price: item.prices[0]?.price || 0,
+        prices_json: item.prices,
         category_id: item.category || null,
         image_url: item.image,
         stock: item.stock ?? null,
