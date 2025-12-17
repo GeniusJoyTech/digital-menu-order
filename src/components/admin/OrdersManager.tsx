@@ -1,32 +1,27 @@
 import { useState, useEffect, useCallback } from "react";
 import { Phone, MapPin, ShoppingBag, Trash2, Check, X, MessageCircle, Copy, ChevronLeft, ChevronRight, Calendar, Download, ChefHat, Truck, PackageCheck, RotateCcw } from "lucide-react";
-import { Order, loadOrders, updateOrderStatus, deleteOrder, deleteOldOrders } from "@/data/ordersConfig";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format, startOfDay, addDays, subDays, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import jsPDF from "jspdf";
-import { restoreStock } from "@/services/stockService";
+import { restoreOrderStock } from "@/services/supabaseStockService";
+import { useSupabaseOrders, Order, OrderItem, OrderExtra } from "@/hooks/useSupabaseOrders";
 
 export const OrdersManager = () => {
-  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const { orders: allOrders, loading, reload, updateOrderStatus, deleteOrder, deleteOldOrders } = useSupabaseOrders();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  const refreshOrders = useCallback(() => {
-    setAllOrders(loadOrders());
-  }, []);
-
   useEffect(() => {
-    refreshOrders();
-
+    reload();
     // Reload orders every 30 seconds
-    const interval = setInterval(refreshOrders, 30000);
+    const interval = setInterval(() => reload(), 30000);
     return () => clearInterval(interval);
-  }, [refreshOrders]);
+  }, [reload]);
 
   // Filter orders for selected date
   const filteredOrders = allOrders.filter(order => {
-    const orderDate = new Date(order.createdAt);
+    const orderDate = new Date(order.created_at);
     return isSameDay(orderDate, selectedDate);
   });
 
@@ -48,20 +43,18 @@ export const OrdersManager = () => {
   const isToday = isSameDay(selectedDate, new Date());
   const isFutureDisabled = selectedDate >= startOfDay(new Date());
 
-  const handleDeleteOldOrders = () => {
+  const handleDeleteOldOrders = async () => {
     if (confirm("Tem certeza que deseja excluir todos os pedidos com mais de 30 dias?")) {
-      const deletedCount = deleteOldOrders(30);
-      setAllOrders(loadOrders());
-      toast.success(`${deletedCount} pedido(s) antigo(s) excluído(s)!`);
+      const { count } = await deleteOldOrders(30);
+      toast.success(`${count || 0} pedido(s) antigo(s) excluído(s)!`);
     }
   };
 
   const handleDownloadPDF = () => {
-    // Group orders by date
     const ordersByDate: { [key: string]: Order[] } = {};
     
     allOrders.forEach(order => {
-      const dateKey = format(new Date(order.createdAt), "yyyy-MM-dd");
+      const dateKey = format(new Date(order.created_at), "yyyy-MM-dd");
       if (!ordersByDate[dateKey]) {
         ordersByDate[dateKey] = [];
       }
@@ -85,22 +78,19 @@ export const OrdersManager = () => {
     doc.text("Relatório de Pedidos", marginLeft, yPosition);
     yPosition += 15;
 
-    sortedDates.forEach((dateKey, dateIndex) => {
+    sortedDates.forEach((dateKey) => {
       const orders = ordersByDate[dateKey];
       const dateFormatted = format(new Date(dateKey), "dd/MM/yyyy - EEEE", { locale: ptBR });
       
-      // Calculate daily total
       const dailyTotal = orders
         .filter(o => o.status !== "cancelled")
         .reduce((sum, o) => sum + o.total, 0);
 
-      // Check if we need a new page for the date header
       if (yPosition > pageHeight - 40) {
         doc.addPage();
         yPosition = 20;
       }
 
-      // Date header with background
       doc.setFillColor(240, 240, 240);
       doc.rect(marginLeft - 2, yPosition - 5, 180, 10, "F");
       doc.setFontSize(12);
@@ -109,8 +99,7 @@ export const OrdersManager = () => {
       doc.text(`Total: R$ ${dailyTotal.toFixed(2).replace(".", ",")}`, 150, yPosition);
       yPosition += 12;
 
-      orders.forEach((order, orderIndex) => {
-        // Check if we need a new page
+      orders.forEach((order) => {
         if (yPosition > pageHeight - 50) {
           doc.addPage();
           yPosition = 20;
@@ -119,37 +108,35 @@ export const OrdersManager = () => {
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
         
-        const time = format(new Date(order.createdAt), "HH:mm");
+        const time = format(new Date(order.created_at), "HH:mm");
         const statusText = order.status === "confirmed" ? "[CONFIRMADO]" : 
                           order.status === "cancelled" ? "[CANCELADO]" : "[PENDENTE]";
         
-        doc.text(`${time} - ${order.customerName} ${statusText}`, marginLeft, yPosition);
+        doc.text(`${time} - ${order.customer_name} ${statusText}`, marginLeft, yPosition);
         doc.text(`R$ ${order.total.toFixed(2).replace(".", ",")}`, 170, yPosition);
         yPosition += lineHeight;
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         
-        // Delivery info
-        const deliveryText = order.deliveryType === "table" 
-          ? `Mesa ${order.tableNumber}` 
-          : order.deliveryType === "pickup" 
+        const deliveryText = order.delivery_type === "table" 
+          ? `Mesa ${order.table_number}` 
+          : order.delivery_type === "pickup" 
             ? "Retirada na loja" 
-            : `Delivery${order.address ? `: ${order.address.substring(0, 50)}` : ""}`;
-        doc.text(`${order.customerPhone} • ${deliveryText}`, marginLeft + 5, yPosition);
+            : `Delivery${order.observations ? `: ${order.observations.substring(0, 50)}` : ""}`;
+        doc.text(`${order.customer_phone} • ${deliveryText}`, marginLeft + 5, yPosition);
         yPosition += lineHeight;
 
-        // Items
         order.items.forEach(item => {
           if (yPosition > pageHeight - 10) {
             doc.addPage();
             yPosition = 20;
           }
-          doc.text(`  ${item.quantity}x ${item.name} (${item.size})`, marginLeft + 5, yPosition);
+          const size = (item as any).size || "";
+          doc.text(`  ${item.quantity}x ${item.name}${size ? ` (${size})` : ""}`, marginLeft + 5, yPosition);
           yPosition += lineHeight - 1;
         });
 
-        // Extras
         order.extras.forEach(extra => {
           if (yPosition > pageHeight - 10) {
             doc.addPage();
@@ -159,13 +146,12 @@ export const OrdersManager = () => {
           yPosition += lineHeight - 1;
         });
 
-        // Drink
         if (order.drink) {
           if (yPosition > pageHeight - 10) {
             doc.addPage();
             yPosition = 20;
           }
-          doc.text(`  + ${order.drink.name}`, marginLeft + 5, yPosition);
+          doc.text(`  + ${order.drink}`, marginLeft + 5, yPosition);
           yPosition += lineHeight - 1;
         }
 
@@ -175,7 +161,6 @@ export const OrdersManager = () => {
       yPosition += 8;
     });
 
-    // Grand total
     const grandTotal = allOrders
       .filter(o => o.status !== "cancelled")
       .reduce((sum, o) => sum + o.total, 0);
@@ -189,7 +174,6 @@ export const OrdersManager = () => {
     doc.setFont("helvetica", "bold");
     doc.text(`TOTAL GERAL: R$ ${grandTotal.toFixed(2).replace(".", ",")}`, marginLeft, yPosition);
 
-    // Save the PDF
     const fileName = `pedidos_${format(new Date(), "yyyy-MM-dd_HH-mm")}.pdf`;
     doc.save(fileName);
     toast.success("PDF gerado com sucesso!");
@@ -209,7 +193,6 @@ export const OrdersManager = () => {
 
     const dateFormatted = format(selectedDate, "dd/MM/yyyy - EEEE", { locale: ptBR });
     
-    // Calculate daily total
     const dailyTotal = filteredOrders
       .filter(o => o.status !== "cancelled")
       .reduce((sum, o) => sum + o.total, 0);
@@ -233,23 +216,23 @@ export const OrdersManager = () => {
       doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
       
-      const time = format(new Date(order.createdAt), "HH:mm");
+      const time = format(new Date(order.created_at), "HH:mm");
       const statusText = order.status === "confirmed" ? "[CONFIRMADO]" : 
                         order.status === "cancelled" ? "[CANCELADO]" : "[PENDENTE]";
       
-      doc.text(`${time} - ${order.customerName} ${statusText}`, marginLeft, yPosition);
+      doc.text(`${time} - ${order.customer_name} ${statusText}`, marginLeft, yPosition);
       doc.text(`R$ ${order.total.toFixed(2).replace(".", ",")}`, 170, yPosition);
       yPosition += lineHeight;
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       
-      const deliveryText = order.deliveryType === "table" 
-        ? `Mesa ${order.tableNumber}` 
-        : order.deliveryType === "pickup" 
+      const deliveryText = order.delivery_type === "table" 
+        ? `Mesa ${order.table_number}` 
+        : order.delivery_type === "pickup" 
           ? "Retirada na loja" 
-          : `Delivery${order.address ? `: ${order.address.substring(0, 50)}` : ""}`;
-      doc.text(`${order.customerPhone} • ${deliveryText}`, marginLeft + 5, yPosition);
+          : `Delivery${order.observations ? `: ${order.observations.substring(0, 50)}` : ""}`;
+      doc.text(`${order.customer_phone} • ${deliveryText}`, marginLeft + 5, yPosition);
       yPosition += lineHeight;
 
       order.items.forEach(item => {
@@ -257,7 +240,8 @@ export const OrdersManager = () => {
           doc.addPage();
           yPosition = 20;
         }
-        doc.text(`  ${item.quantity}x ${item.name} (${item.size})`, marginLeft + 5, yPosition);
+        const size = (item as any).size || "";
+        doc.text(`  ${item.quantity}x ${item.name}${size ? ` (${size})` : ""}`, marginLeft + 5, yPosition);
         yPosition += lineHeight - 1;
       });
 
@@ -275,7 +259,7 @@ export const OrdersManager = () => {
           doc.addPage();
           yPosition = 20;
         }
-        doc.text(`  + ${order.drink.name}`, marginLeft + 5, yPosition);
+        doc.text(`  + ${order.drink}`, marginLeft + 5, yPosition);
         yPosition += lineHeight - 1;
       }
 
@@ -287,25 +271,35 @@ export const OrdersManager = () => {
     toast.success("PDF do dia gerado com sucesso!");
   };
 
-  const handleConfirm = (orderId: string) => {
-    updateOrderStatus(orderId, "confirmed");
-    setAllOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: "confirmed" } : o));
+  const handleConfirm = async (orderId: string) => {
+    await updateOrderStatus(orderId, "confirmed");
+    toast.success("Pedido confirmado!");
   };
 
-  const handleCancel = (orderId: string) => {
+  const handleCancel = async (orderId: string) => {
     const order = allOrders.find(o => o.id === orderId);
     if (order && order.status !== "cancelled") {
       // Restore stock when cancelling
-      restoreStock(order);
+      const itemsForStock = order.items.map(i => ({
+        id: (i as any).id || "",
+        quantity: i.quantity
+      })).filter(i => i.id);
+      
+      const extrasForStock = order.extras.map(e => ({
+        id: (e as any).id || "",
+        quantity: e.quantity || 1
+      })).filter(e => e.id);
+      
+      await restoreOrderStock(itemsForStock, extrasForStock);
     }
-    updateOrderStatus(orderId, "cancelled");
-    setAllOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: "cancelled" } : o));
+    await updateOrderStatus(orderId, "cancelled");
+    toast.success("Pedido cancelado e estoque restaurado!");
   };
 
-  const handleDelete = (orderId: string) => {
+  const handleDelete = async (orderId: string) => {
     if (confirm("Tem certeza que deseja excluir este pedido?")) {
-      deleteOrder(orderId);
-      setAllOrders(prev => prev.filter(o => o.id !== orderId));
+      await deleteOrder(orderId);
+      toast.success("Pedido excluído!");
     }
   };
 
@@ -316,13 +310,13 @@ export const OrdersManager = () => {
   };
 
   const sendStatusMessage = (order: Order, status: "kitchen" | "left" | "delivered") => {
-    const cleanPhone = order.customerPhone.replace(/\D/g, "");
+    const cleanPhone = order.customer_phone.replace(/\D/g, "");
     const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
     
     const messages = {
-      kitchen: `Olá ${order.customerName}! 👨‍🍳\n\nSeu pedido já está sendo preparado na cozinha!\n\nEm breve ficará pronto. Obrigado pela preferência! 🍹`,
-      left: `Olá ${order.customerName}! 🛵\n\nSeu pedido acabou de sair para entrega!\n\nEm breve chegará até você. Obrigado! 📦`,
-      delivered: `Olá ${order.customerName}! ✅\n\nSeu pedido foi entregue!\n\nEsperamos que goste! Obrigado pela preferência! 💜`
+      kitchen: `Olá ${order.customer_name}! 👨‍🍳\n\nSeu pedido já está sendo preparado na cozinha!\n\nEm breve ficará pronto. Obrigado pela preferência! 🍹`,
+      left: `Olá ${order.customer_name}! 🛵\n\nSeu pedido acabou de sair para entrega!\n\nEm breve chegará até você. Obrigado! 📦`,
+      delivered: `Olá ${order.customer_name}! ✅\n\nSeu pedido foi entregue!\n\nEsperamos que goste! Obrigado pela preferência! 💜`
     };
 
     const message = encodeURIComponent(messages[status]);
@@ -331,27 +325,26 @@ export const OrdersManager = () => {
   };
 
   const handleCopyOrder = (order: Order) => {
-    const itemsText = order.items.map(item => 
-      `${item.quantity}x ${item.name} (${item.size}) - R$ ${(item.price * item.quantity).toFixed(2).replace(".", ",")}`
-    ).join("\n");
+    const itemsText = order.items.map(item => {
+      const size = (item as any).size || "";
+      return `${item.quantity}x ${item.name}${size ? ` (${size})` : ""} - R$ ${(item.price * item.quantity).toFixed(2).replace(".", ",")}`;
+    }).join("\n");
     
     const extrasText = order.extras.length > 0 
       ? order.extras.map(e => `+ ${e.name} - R$ ${e.price.toFixed(2).replace(".", ",")}`).join("\n")
       : "";
     
-    const drinkText = order.drink 
-      ? `+ ${order.drink.name} - R$ ${order.drink.price.toFixed(2).replace(".", ",")}`
-      : "";
+    const drinkText = order.drink ? `+ ${order.drink}` : "";
 
-    const deliveryText = order.deliveryType === "table" 
-      ? `Mesa: ${order.tableNumber}` 
-      : order.deliveryType === "pickup" 
+    const deliveryText = order.delivery_type === "table" 
+      ? `Mesa: ${order.table_number}` 
+      : order.delivery_type === "pickup" 
         ? "Retirada na loja" 
-        : `Delivery: ${order.address || ""}`;
+        : `Delivery: ${order.observations || ""}`;
 
     const orderText = `*Confirma seu pedido?*
 
-${order.customerName}
+${order.customer_name}
 ${deliveryText}
 
 *Itens:*
@@ -390,10 +383,11 @@ ${drinkText}
   };
 
   const getDeliveryLabel = (order: Order) => {
-    switch (order.deliveryType) {
-      case "table": return `Mesa ${order.tableNumber}`;
+    switch (order.delivery_type) {
+      case "table": return `Mesa ${order.table_number}`;
       case "pickup": return "Retirada na loja";
       case "delivery": return "Delivery";
+      default: return "";
     }
   };
 
@@ -403,6 +397,14 @@ ${drinkText}
     .reduce((sum, o) => sum + o.total, 0);
 
   const pendingCount = filteredOrders.filter(o => o.status === "pending").length;
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Carregando pedidos...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -472,7 +474,7 @@ ${drinkText}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <button
           onClick={() => {
-            refreshOrders();
+            reload();
             toast.success("Pedidos atualizados!");
           }}
           className="w-full py-2 rounded-lg bg-muted text-foreground text-sm font-medium hover:bg-muted/80 transition-colors flex items-center justify-center gap-2"
@@ -529,12 +531,12 @@ ${drinkText}
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-bold text-foreground">{order.customerName}</h3>
+                  <h3 className="font-bold text-foreground">{order.customer_name}</h3>
                   <span className={cn("text-xs px-2 py-0.5 rounded-full", getStatusColor(order.status))}>
                     {getStatusLabel(order.status)}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground">{formatTime(order.createdAt)} • {getDeliveryLabel(order)}</p>
+                <p className="text-sm text-muted-foreground">{formatTime(order.created_at)} • {getDeliveryLabel(order)}</p>
               </div>
               <p className="font-bold text-brand-pink whitespace-nowrap">
                 R$ {order.total.toFixed(2).replace(".", ",")}
@@ -544,11 +546,11 @@ ${drinkText}
             {/* Phone & Copy */}
             <div className="flex items-center gap-3">
               <button
-                onClick={() => handleWhatsApp(order.customerPhone)}
+                onClick={() => handleWhatsApp(order.customer_phone)}
                 className="flex items-center gap-2 text-sm text-brand-pink hover:underline"
               >
                 <Phone className="w-4 h-4" />
-                {order.customerPhone}
+                {order.customer_phone}
                 <MessageCircle className="w-4 h-4" />
               </button>
               <button
@@ -561,25 +563,28 @@ ${drinkText}
             </div>
 
             {/* Address */}
-            {order.address && (
+            {order.observations && order.delivery_type === "delivery" && (
               <div className="flex items-start gap-2 text-sm text-muted-foreground">
                 <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>{order.address}</span>
+                <span>{order.observations}</span>
               </div>
             )}
 
             {/* Items */}
             <div className="space-y-1 pt-2 border-t border-border">
-              {order.items.map((item, idx) => (
-                <div key={idx} className="flex justify-between text-sm">
-                  <span className="text-foreground">
-                    {item.quantity}x {item.name} ({item.size})
-                  </span>
-                  <span className="text-muted-foreground">
-                    R$ {(item.price * item.quantity).toFixed(2).replace(".", ",")}
-                  </span>
-                </div>
-              ))}
+              {order.items.map((item, idx) => {
+                const size = (item as any).size || "";
+                return (
+                  <div key={idx} className="flex justify-between text-sm">
+                    <span className="text-foreground">
+                      {item.quantity}x {item.name}{size ? ` (${size})` : ""}
+                    </span>
+                    <span className="text-muted-foreground">
+                      R$ {(item.price * item.quantity).toFixed(2).replace(".", ",")}
+                    </span>
+                  </div>
+                );
+              })}
               {order.extras.map((extra, idx) => (
                 <div key={`extra-${idx}`} className="flex justify-between text-sm">
                   <span className="text-foreground">+ {extra.name}</span>
@@ -590,10 +595,7 @@ ${drinkText}
               ))}
               {order.drink && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-foreground">+ {order.drink.name}</span>
-                  <span className="text-muted-foreground">
-                    R$ {order.drink.price.toFixed(2).replace(".", ",")}
-                  </span>
+                  <span className="text-foreground">+ {order.drink}</span>
                 </div>
               )}
             </div>

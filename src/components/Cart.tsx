@@ -6,8 +6,9 @@ import { useMenu } from "@/contexts/MenuContext";
 import { useCheckout } from "@/contexts/CheckoutContext";
 import { cn } from "@/lib/utils";
 import CheckoutForm, { CheckoutData } from "./CheckoutForm";
-import { saveOrder, Order } from "@/data/ordersConfig";
-import { decreaseStock } from "@/services/stockService";
+import { supabase } from "@/integrations/supabase/client";
+import { decreaseOrderStock } from "@/services/supabaseStockService";
+import { toast } from "sonner";
 
 interface CartProps {
   items: CartItem[];
@@ -31,13 +32,13 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
     0
   );
 
-  const handleCheckoutSubmit = (data: CheckoutData) => {
+  const handleCheckoutSubmit = async (data: CheckoutData) => {
     const phoneNumber = "5515988240374";
     
     // Calculate extras total from stepValues
     let extrasTotal = 0;
-    const extrasSelected: { name: string; price: number }[] = [];
-    let drinkSelected: { name: string; price: number } | null = null;
+    const extrasSelected: { id?: string; name: string; price: number }[] = [];
+    let drinkSelected: { id?: string; name: string; price: number } | null = null;
 
     // Process step values to get extras, drinks, and custom options
     Object.entries(data.stepValues).forEach(([stepId, selectedIds]) => {
@@ -55,7 +56,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
         selectedIds.forEach(optionId => {
           const customOption = step.options.find(o => o.id === optionId);
           if (customOption) {
-            extrasSelected.push({ name: customOption.name, price: 0 }); // Price calculated separately
+            extrasSelected.push({ id: customOption.id, name: customOption.name, price: 0 }); // Price calculated separately
           }
         });
 
@@ -79,7 +80,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
         const extra = config.extras.find(e => e.id === optionId);
         if (extra) {
           extrasTotal += extra.price;
-          extrasSelected.push({ name: extra.name, price: extra.price });
+          extrasSelected.push({ id: extra.id, name: extra.name, price: extra.price });
           return;
         }
         
@@ -88,7 +89,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
           const drink = config.drinkOptions.find(d => d.id === optionId);
           if (drink) {
             extrasTotal += drink.price;
-            drinkSelected = { name: drink.name, price: drink.price };
+            drinkSelected = { id: drink.id, name: drink.name, price: drink.price };
             return;
           }
         }
@@ -98,7 +99,7 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
           const customOption = step.options.find(o => o.id === optionId);
           if (customOption) {
             extrasTotal += customOption.price;
-            extrasSelected.push({ name: customOption.name, price: customOption.price });
+            extrasSelected.push({ id: customOption.id, name: customOption.name, price: customOption.price });
           }
         }
       });
@@ -155,35 +156,50 @@ const Cart = ({ items, onUpdateQuantity, onRemoveItem, onClearCart }: CartProps)
       message += `🛵 *Delivery*`;
     }
 
-    // Save order to localStorage for admin panel
-    const order: Order = {
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      customerName: data.recipientName,
-      customerPhone: data.customerPhone,
-      deliveryType: isTable ? "table" : data.deliveryType,
-      tableNumber: tableNumber || undefined,
-      address: data.address,
-      items: items.map(item => ({
-        name: item.name,
-        size: item.selectedSize,
-        quantity: item.quantity,
-        price: item.selectedPrice,
-      })),
+    // Prepare order items with IDs for stock tracking
+    const orderItems = items.map(item => ({
+      id: item.id,
+      name: item.name,
+      size: item.selectedSize,
+      quantity: item.quantity,
+      price: item.selectedPrice,
+    }));
+
+    // Save order to Supabase
+    const orderData = {
+      customer_name: data.recipientName,
+      customer_phone: data.customerPhone,
+      delivery_type: isTable ? "table" : data.deliveryType,
+      table_number: tableNumber || null,
+      items: orderItems,
       extras: extrasSelected,
-      drink: drinkSelected,
+      drink: drinkSelected ? drinkSelected.name : null,
+      observations: data.address || null,
       total: finalTotal,
-      status: "pending",
+      status: "pending" as const,
     };
-    saveOrder(order);
+
+    const { error } = await supabase
+      .from("orders")
+      .insert(orderData);
+    
+    if (error) {
+      console.error("Error saving order:", error);
+      toast.error("Erro ao salvar pedido");
+      return;
+    }
     
     // Decrease stock after order is placed
-    decreaseStock(order);
+    await decreaseOrderStock(
+      orderItems.map(i => ({ id: i.id, quantity: i.quantity })),
+      extrasSelected.map(e => ({ id: e.id || "", quantity: 1 })).filter(e => e.id)
+    );
 
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
     
     window.open(whatsappUrl, "_blank");
+    toast.success("Pedido enviado com sucesso!");
     onClearCart();
     setShowCheckout(false);
     setIsOpen(false);
