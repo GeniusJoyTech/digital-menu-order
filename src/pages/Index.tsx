@@ -25,10 +25,24 @@ const Index = () => {
   };
 
   const handleAddToCart = (item: MenuItemType, size: string, price: number) => {
+    // Check stock limit
+    const menuItem = config.menuItems.find(m => m.id === item.id);
+    const maxQuantity = menuItem?.stock;
+    
     setCartItems((prev) => {
       const existingIndex = prev.findIndex(
         (cartItem) => cartItem.id === item.id && cartItem.selectedSize === size
       );
+
+      // Calculate total quantity of this item in cart (all sizes)
+      const totalInCart = prev
+        .filter(cartItem => cartItem.id === item.id)
+        .reduce((sum, cartItem) => sum + cartItem.quantity, 0);
+
+      // If stock is defined and adding would exceed it, don't add
+      if (maxQuantity !== undefined && totalInCart >= maxQuantity) {
+        return prev;
+      }
 
       if (existingIndex >= 0) {
         const updated = [...prev];
@@ -51,11 +65,30 @@ const Index = () => {
 
   const handleUpdateQuantity = (itemId: string, size: string, delta: number) => {
     setCartItems((prev) => {
+      // Find the menu item to check stock
+      const menuItem = config.menuItems.find(m => m.id === itemId);
+      const maxQuantity = menuItem?.stock;
+
       return prev
         .map((item) => {
           if (item.id === itemId && item.selectedSize === size) {
             const newQuantity = item.quantity + delta;
-            return newQuantity > 0 ? { ...item, quantity: newQuantity } : null;
+            
+            // Don't allow going below 1 (will be removed)
+            if (newQuantity <= 0) return null;
+            
+            // Check stock limit when increasing
+            if (delta > 0 && maxQuantity !== undefined) {
+              const totalInCart = prev
+                .filter(cartItem => cartItem.id === itemId)
+                .reduce((sum, cartItem) => sum + cartItem.quantity, 0);
+              
+              if (totalInCart >= maxQuantity) {
+                return item; // Don't increase
+              }
+            }
+            
+            return { ...item, quantity: newQuantity };
           }
           return item;
         })
