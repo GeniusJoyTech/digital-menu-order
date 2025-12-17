@@ -75,15 +75,20 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
           };
         });
 
-        // Ensure default steps exist
-        const ids = new Set(steps.map(s => s.id));
-        const ensuredSteps = [...steps];
-        
-        for (const defaultStep of defaultCheckoutSteps) {
-          if ((defaultStep.id === "delivery" || defaultStep.id === "name") && !ids.has(defaultStep.id)) {
-            ensuredSteps.unshift({ ...defaultStep });
-          }
-        }
+        // Ensure required built-in steps exist (by type) and keep them at the top
+        const deliveryDefault = defaultCheckoutSteps.find(s => s.type === "delivery")!;
+        const nameDefault = defaultCheckoutSteps.find(s => s.type === "name")!;
+
+        const byType = new Map<string, CheckoutStep>();
+        steps.forEach((s) => {
+          if (!byType.has(s.type)) byType.set(s.type, s);
+        });
+
+        const ensuredSteps: CheckoutStep[] = [
+          byType.get("delivery") ?? { ...deliveryDefault },
+          byType.get("name") ?? { ...nameDefault },
+          ...steps.filter((s) => s.type !== "delivery" && s.type !== "name"),
+        ];
 
         setConfig({ steps: ensuredSteps });
       } else {
@@ -346,7 +351,8 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteStep = async (id: string) => {
-    if (id === "delivery" || id === "name") {
+    const step = config.steps.find((s) => s.id === id);
+    if (step?.type === "delivery" || step?.type === "name") {
       return;
     }
 

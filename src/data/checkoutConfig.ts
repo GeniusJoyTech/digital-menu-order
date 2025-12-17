@@ -51,9 +51,15 @@ export interface CheckoutStep {
 
 const STORAGE_KEY = "shakeyes_checkout_config";
 
+// Built-in steps must use UUIDs because the backend schema uses uuid PKs.
+export const BUILTIN_STEP_IDS = {
+  delivery: "00000000-0000-0000-0000-000000000001",
+  name: "00000000-0000-0000-0000-000000000002",
+} as const;
+
 export const defaultCheckoutSteps: CheckoutStep[] = [
   {
-    id: "delivery",
+    id: BUILTIN_STEP_IDS.delivery,
     type: "delivery",
     title: "Como deseja receber?",
     subtitle: undefined,
@@ -65,7 +71,7 @@ export const defaultCheckoutSteps: CheckoutStep[] = [
     showCondition: "always",
   },
   {
-    id: "name",
+    id: BUILTIN_STEP_IDS.name,
     type: "name",
     title: "Quem vai receber?",
     subtitle: undefined,
@@ -116,15 +122,30 @@ const normalizeOption = (o: any): CheckoutStepOption => ({
   trackStock: Boolean(o?.trackStock),
 });
 
+const isUuid = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
 const normalizeStep = (s: any): CheckoutStep => {
-  const fallback = defaultStepsById.get(String(s?.id ?? ""));
+  const raw = s || {};
+  const rawType = (raw?.type ?? "custom_select") as CheckoutStepType;
+
+  // Force UUID ids for built-in steps, regardless of legacy ids.
+  const normalizedId =
+    rawType === "delivery"
+      ? BUILTIN_STEP_IDS.delivery
+      : rawType === "name"
+        ? BUILTIN_STEP_IDS.name
+        : String(raw?.id ?? "");
+
+  const fallback = defaultStepsById.get(normalizedId);
+
   const base: CheckoutStep = fallback
     ? { ...fallback }
     : {
-        id: String(s?.id ?? ""),
-        type: (s?.type ?? "custom_select") as CheckoutStepType,
-        title: String(s?.title ?? ""),
-        subtitle: s?.subtitle,
+        id: normalizedId,
+        type: rawType,
+        title: String(raw?.title ?? ""),
+        subtitle: raw?.subtitle,
         enabled: true,
         required: false,
         multiSelect: false,
@@ -133,16 +154,27 @@ const normalizeStep = (s: any): CheckoutStep => {
         showCondition: "always",
         triggerItemIds: [],
         triggerCategoryIds: [],
-        pricingRule: s?.pricingRule,
+        pricingRule: raw?.pricingRule,
         maxSelectionsEnabled: false,
         maxSelections: 3,
         linkedMenuItems: [],
       };
 
-  const merged = { ...base, ...(s || {}) } as CheckoutStep;
+  // Merge but keep our normalized id/type
+  const merged = { ...base, ...(raw || {}) } as CheckoutStep;
+
+  // If a non-built-in step has a non-uuid id (legacy), upgrade it so it can be persisted in the backend.
+  const safeId =
+    rawType === "delivery" || rawType === "name"
+      ? normalizedId
+      : isUuid(String(merged.id || ""))
+        ? String(merged.id)
+        : crypto.randomUUID();
 
   return {
     ...merged,
+    id: safeId,
+    type: rawType,
     enabled: merged.enabled ?? true,
     required: merged.required ?? false,
     multiSelect: merged.multiSelect ?? false,
@@ -163,14 +195,13 @@ const normalizeCheckoutConfig = (raw: any): CheckoutConfig => {
   const rawSteps = Array.isArray(raw?.steps) ? raw.steps : [];
   const normalized = rawSteps.map(normalizeStep).filter((s) => s.id);
 
-  // Ensure required built-in steps always exist
-  const ids = new Set(normalized.map((s) => s.id));
+  // Ensure required built-in steps always exist (by type)
+  const hasDelivery = normalized.some((s) => s.type === "delivery");
+  const hasName = normalized.some((s) => s.type === "name");
+
   const ensured: CheckoutStep[] = [];
-  defaultCheckoutSteps.forEach((s) => {
-    if ((s.id === "delivery" || s.id === "name") && !ids.has(s.id)) {
-      ensured.push({ ...s });
-    }
-  });
+  if (!hasDelivery) ensured.push({ ...defaultCheckoutSteps.find((s) => s.type === "delivery")! });
+  if (!hasName) ensured.push({ ...defaultCheckoutSteps.find((s) => s.type === "name")! });
 
   return { steps: [...ensured, ...normalized] };
 };

@@ -100,12 +100,12 @@ export const CheckoutStepsManager = ({
   }, []);
 
   // Delete a step from local state
-  const deleteLocalStep = useCallback((id: string) => {
-    if (id === "delivery" || id === "name") {
+  const deleteLocalStep = useCallback((step: CheckoutStep) => {
+    if (step.type === "delivery" || step.type === "name") {
       toast.error("Esta etapa é obrigatória e não pode ser removida");
       return;
     }
-    setLocalSteps(prev => prev.filter(s => s.id !== id));
+    setLocalSteps(prev => prev.filter(s => s.id !== step.id));
     setHasUnsavedChanges(true);
     toast.success("Etapa removida!");
   }, []);
@@ -314,8 +314,8 @@ export const CheckoutStepsManager = ({
     }
   };
 
-  const handleDeleteStep = (id: string) => {
-    deleteLocalStep(id);
+  const handleDeleteStep = (step: CheckoutStep) => {
+    deleteLocalStep(step);
   };
 
   const moveStep = (index: number, direction: "up" | "down") => {
@@ -395,7 +395,7 @@ export const CheckoutStepsManager = ({
     }
   };
 
-  const isBuiltInStep = (id: string) => id === "delivery" || id === "name";
+  const isBuiltInStep = (step: CheckoutStep) => step.type === "delivery" || step.type === "name";
 
   const renderConditionSelector = (step: CheckoutStep, isEditing: boolean) => {
     const currentStep = isEditing && editingStep ? editingStep : step;
@@ -1341,7 +1341,7 @@ export const CheckoutStepsManager = ({
                 />
               </div>
 
-              {!isBuiltInStep(step.id) && (
+              {!isBuiltInStep(step) && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -1561,7 +1561,7 @@ export const CheckoutStepsManager = ({
                     <span className="px-2 py-0.5 rounded bg-muted">
                       {STEP_TYPE_LABELS[step.type] || step.type}
                     </span>
-                    {isBuiltInStep(step.id) && (
+                    {isBuiltInStep(step) && (
                       <span className="text-muted-foreground">(obrigatório)</span>
                     )}
                     {getConditionSummary(step) && (
@@ -1599,9 +1599,9 @@ export const CheckoutStepsManager = ({
                   <Edit2 className="w-4 h-4" />
                 </button>
 
-                {!isBuiltInStep(step.id) && (
+                {!isBuiltInStep(step) && (
                   <button
-                    onClick={() => handleDeleteStep(step.id)}
+                    onClick={() => handleDeleteStep(step)}
                     className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20"
                   >
                     <Trash2 className="w-4 h-4" />
