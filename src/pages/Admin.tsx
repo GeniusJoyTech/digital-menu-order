@@ -29,9 +29,9 @@ type TabType = "orders" | "items" | "categories" | "checkout" | "stock" | "desig
 
 const Admin = () => {
   const { isAuthenticated, logout } = useAuth();
-  const { config, updateMenuItem, addMenuItem, deleteMenuItem, updateExtra, addExtra, deleteExtra, updateDrinkOption, addDrinkOption, deleteDrinkOption, addAcaiTurbineItem, removeAcaiTurbineItem, updateAcaiTurbineItem, updateCategories, resetToDefault } = useMenu();
+  const { config, updateMenuItem, addMenuItem, deleteMenuItem, updateExtra, addExtra, deleteExtra, updateDrinkOption, addDrinkOption, deleteDrinkOption, addAcaiTurbineItem, removeAcaiTurbineItem, updateAcaiTurbineItem, updateCategories, resetToDefault, reloadConfig: reloadMenuConfig } = useMenu();
   const { design, updateDesign, resetDesign, addCustomFont, removeCustomFont, getAllFonts } = useDesign();
-  const { config: checkoutConfig, updateStep, addStep, deleteStep, reorderSteps, resetToDefault: resetCheckout, removeMenuItemFromSteps } = useCheckout();
+  const { config: checkoutConfig, updateStep, addStep, deleteStep, reorderSteps, resetToDefault: resetCheckout, removeMenuItemFromSteps, reloadConfig: reloadCheckoutConfig } = useCheckout();
   const { exportConfig, importConfig, isExporting, isImporting } = useConfigExport();
   
   const [activeTab, setActiveTab] = useState<TabType>("orders");
@@ -287,12 +287,27 @@ const Admin = () => {
           />
         )}
 
-        {activeTab === "stock" && (
-          <div className="space-y-6">
-            {/* Menu Items Stock */}
-            <div className="space-y-4">
-              <h2 className="font-display text-xl text-brand-pink">Itens do Cardápio</h2>
-              {config.menuItems.map((item) => (
+{activeTab === "stock" && (
+  <div className="space-y-6">
+    <div className="flex justify-end">
+      <button
+        onClick={() => {
+          reloadMenuConfig();
+          reloadCheckoutConfig();
+          toast.success("Estoque atualizado!");
+        }}
+        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors text-sm"
+        title="Atualizar lista de estoque"
+      >
+        <RotateCcw className="w-4 h-4" />
+        Atualizar estoque
+      </button>
+    </div>
+
+    {/* Menu Items Stock */}
+    <div className="space-y-4">
+      <h2 className="font-display text-xl text-brand-pink">Itens do Cardápio</h2>
+      {config.menuItems.map((item) => (
                 <div
                   key={item.id}
                   className={cn(

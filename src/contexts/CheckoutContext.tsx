@@ -17,6 +17,7 @@ interface CheckoutContextType {
   resetToDefault: () => void;
   // Sync functions to remove references when menu items are deleted
   removeMenuItemFromSteps: (menuItemId: string) => void;
+  reloadConfig: () => void;
 }
 
 const CheckoutContext = createContext<CheckoutContextType | undefined>(undefined);
@@ -27,6 +28,10 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     saveCheckoutConfig(config);
   }, [config]);
+
+  const reloadConfig = () => {
+    setConfig(loadCheckoutConfig());
+  };
 
   const updateStep = (step: CheckoutStep) => {
     setConfig((prev) => ({
@@ -73,8 +78,8 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
       ...prev,
       steps: prev.steps.map((step) => ({
         ...step,
-        triggerItemIds: (step.triggerItemIds || []).filter(id => id !== menuItemId),
-        linkedMenuItems: (step.linkedMenuItems || []).filter(l => l.itemId !== menuItemId),
+        triggerItemIds: (step.triggerItemIds || []).filter((id) => id !== menuItemId),
+        linkedMenuItems: (step.linkedMenuItems || []).filter((l) => l.itemId !== menuItemId),
       })),
     }));
   }, []);
@@ -89,6 +94,7 @@ export const CheckoutProvider = ({ children }: { children: ReactNode }) => {
         reorderSteps,
         resetToDefault,
         removeMenuItemFromSteps,
+        reloadConfig,
       }}
     >
       {children}

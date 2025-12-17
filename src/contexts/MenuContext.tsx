@@ -19,6 +19,7 @@ interface MenuContextType {
   updateAcaiTurbineItem: (index: number, item: { name: string; stock?: number }) => void;
   updateCategories: (categories: { id: string; name: string; color: string }[]) => void;
   resetToDefault: () => void;
+  reloadConfig: () => void;
 }
 
 const MenuContext = createContext<MenuContextType | undefined>(undefined);
@@ -29,6 +30,10 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     saveMenuConfig(config);
   }, [config]);
+
+  const reloadConfig = () => {
+    setConfig(loadMenuConfig());
+  };
 
   const updateMenuItem = (item: MenuItem) => {
     setConfig((prev) => ({
@@ -152,6 +157,7 @@ export const MenuProvider = ({ children }: { children: ReactNode }) => {
         updateAcaiTurbineItem,
         updateCategories,
         resetToDefault,
+        reloadConfig,
       }}
     >
       {children}
