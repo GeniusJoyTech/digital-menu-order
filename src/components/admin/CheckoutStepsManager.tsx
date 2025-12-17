@@ -641,6 +641,12 @@ export const CheckoutStepsManager = ({
   const [newStepItemName, setNewStepItemName] = useState("");
   const [newStepItemPrice, setNewStepItemPrice] = useState("");
   const [newStepItemTrackStock, setNewStepItemTrackStock] = useState(false);
+  
+  // State for editing step-exclusive items
+  const [editingStepItemId, setEditingStepItemId] = useState<string | null>(null);
+  const [editStepItemName, setEditStepItemName] = useState("");
+  const [editStepItemPrice, setEditStepItemPrice] = useState("");
+  const [editStepItemTrackStock, setEditStepItemTrackStock] = useState(false);
 
   const addStepExclusiveItem = (isEditing: boolean) => {
     if (!newStepItemName.trim()) {
@@ -684,6 +690,55 @@ export const CheckoutStepsManager = ({
         options: (newStep.options || []).filter(o => o.id !== itemId),
       });
     }
+  };
+
+  const startEditingStepItem = (option: { id: string; name: string; price: number; trackStock?: boolean }) => {
+    setEditingStepItemId(option.id);
+    setEditStepItemName(option.name);
+    setEditStepItemPrice(option.price.toString());
+    setEditStepItemTrackStock(option.trackStock || false);
+  };
+
+  const saveEditingStepItem = (isEditing: boolean) => {
+    if (!editingStepItemId || !editStepItemName.trim()) {
+      toast.error("Digite um nome para o item");
+      return;
+    }
+
+    const updatedItem = {
+      id: editingStepItemId,
+      name: editStepItemName.trim(),
+      price: parseFloat(editStepItemPrice) || 0,
+      trackStock: editStepItemTrackStock,
+    };
+
+    if (isEditing && editingStep) {
+      setEditingStep({
+        ...editingStep,
+        options: editingStep.options.map(o => 
+          o.id === editingStepItemId ? { ...o, ...updatedItem } : o
+        ),
+      });
+    } else {
+      setNewStep({
+        ...newStep,
+        options: (newStep.options || []).map(o => 
+          o.id === editingStepItemId ? { ...o, ...updatedItem } : o
+        ),
+      });
+    }
+
+    setEditingStepItemId(null);
+    setEditStepItemName("");
+    setEditStepItemPrice("");
+    setEditStepItemTrackStock(false);
+  };
+
+  const cancelEditingStepItem = () => {
+    setEditingStepItemId(null);
+    setEditStepItemName("");
+    setEditStepItemPrice("");
+    setEditStepItemTrackStock(false);
   };
 
   // Render linked menu items selector for both new step and editing
@@ -778,26 +833,84 @@ export const CheckoutStepsManager = ({
           {(stepOptions || []).length > 0 && (
             <div className="space-y-2">
               {(stepOptions || []).map((option) => (
-                <div key={option.id} className="flex items-center justify-between p-2 rounded-lg bg-background">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-foreground">{option.name}</span>
-                    {option.trackStock && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand-pink/20 text-brand-pink">Estoque</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {option.price > 0 && (
-                      <span className="text-xs text-brand-pink">
-                        +R$ {option.price.toFixed(2).replace(".", ",")}
-                      </span>
-                    )}
-                    <button
-                      onClick={() => removeStepExclusiveItem(option.id, isEditing)}
-                      className="p-1 rounded text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
+                <div key={option.id} className="p-2 rounded-lg bg-background">
+                  {editingStepItemId === option.id ? (
+                    // Editing mode
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={editStepItemName}
+                          onChange={(e) => setEditStepItemName(e.target.value)}
+                          placeholder="Nome do item"
+                          className="flex-1 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                        />
+                        <input
+                          type="number"
+                          value={editStepItemPrice}
+                          onChange={(e) => setEditStepItemPrice(e.target.value)}
+                          placeholder="R$ 0,00"
+                          className="w-24 p-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editStepItemTrackStock}
+                            onChange={(e) => setEditStepItemTrackStock(e.target.checked)}
+                            className="w-4 h-4 rounded border-border"
+                          />
+                          <span className="text-xs text-muted-foreground">Item de estoque</span>
+                        </label>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => saveEditingStepItem(isEditing)}
+                            className="p-1 rounded bg-brand-pink text-primary-foreground hover:opacity-90"
+                          >
+                            <Save className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={cancelEditingStepItem}
+                            className="p-1 rounded bg-muted text-muted-foreground hover:bg-muted/80"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    // Display mode
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-foreground">{option.name}</span>
+                        {option.trackStock && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand-pink/20 text-brand-pink">Estoque</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {option.price > 0 && (
+                          <span className="text-xs text-brand-pink">
+                            +R$ {option.price.toFixed(2).replace(".", ",")}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => startEditingStepItem(option)}
+                          className="p-1 rounded text-muted-foreground hover:bg-muted/80"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => removeStepExclusiveItem(option.id, isEditing)}
+                          className="p-1 rounded text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
