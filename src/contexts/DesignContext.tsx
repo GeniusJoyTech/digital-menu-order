@@ -18,6 +18,7 @@ export interface DesignConfig {
   logo: string;
   storeName: string;
   storeDescription: string;
+  whatsappNumber: string;
   socialLinks: SocialLink[];
   primaryColor: string;
   backgroundColor: string;
@@ -40,6 +41,7 @@ const defaultDesign: DesignConfig = {
   logo: "",
   storeName: "Shake Yes",
   storeDescription: "Personalizamos o copo com o seu nome!",
+  whatsappNumber: "15998343599",
   socialLinks: [],
   primaryColor: "340 75% 65%",
   backgroundColor: "15 60% 95%",
@@ -142,6 +144,7 @@ export const DesignProvider = ({ children }: { children: ReactNode }) => {
             logo: data.logo_url || "",
             storeName: data.store_name || defaultDesign.storeName,
             storeDescription: data.store_description || defaultDesign.storeDescription,
+            whatsappNumber: (data as any).whatsapp_number || defaultDesign.whatsappNumber,
             socialLinks: (data.social_links as unknown as SocialLink[]) || [],
             primaryColor: convertColorFromDb(data.primary_color, defaultDesign.primaryColor),
             backgroundColor: convertColorFromDb(data.background_color, defaultDesign.backgroundColor),
@@ -202,6 +205,7 @@ export const DesignProvider = ({ children }: { children: ReactNode }) => {
     if (updates.logo !== undefined) dbUpdates.logo_url = updates.logo;
     if (updates.storeName !== undefined) dbUpdates.store_name = updates.storeName;
     if (updates.storeDescription !== undefined) dbUpdates.store_description = updates.storeDescription;
+    if (updates.whatsappNumber !== undefined) dbUpdates.whatsapp_number = updates.whatsappNumber;
     if (updates.socialLinks !== undefined) dbUpdates.social_links = updates.socialLinks;
     if (updates.primaryColor !== undefined) dbUpdates.primary_color = convertColorToDb(updates.primaryColor);
     if (updates.backgroundColor !== undefined) dbUpdates.background_color = convertColorToDb(updates.backgroundColor);
@@ -235,6 +239,7 @@ export const DesignProvider = ({ children }: { children: ReactNode }) => {
         logo_url: null,
         store_name: defaultDesign.storeName,
         store_description: defaultDesign.storeDescription,
+        whatsapp_number: defaultDesign.whatsappNumber,
         social_links: [],
         primary_color: convertColorToDb(defaultDesign.primaryColor),
         background_color: convertColorToDb(defaultDesign.backgroundColor),
