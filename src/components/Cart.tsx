@@ -4,6 +4,7 @@ import { ShoppingBag, Trash2, Send, X } from "lucide-react";
 import { CartItem } from "@/data/menuData";
 import { useMenu } from "@/contexts/MenuContext";
 import { useCheckout } from "@/contexts/CheckoutContext";
+import { useDesign } from "@/contexts/DesignContext";
 import { cn } from "@/lib/utils";
 import CheckoutForm, { CheckoutData } from "./CheckoutForm";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +22,7 @@ const Cart = ({ items, onRemoveItem, onClearCart }: CartProps) => {
   const [showCheckout, setShowCheckout] = useState(false);
   const { config } = useMenu();
   const { config: checkoutConfig } = useCheckout();
+  const { design } = useDesign();
   const { mesa } = useParams();
   const isTable = mesa?.startsWith("mesa-");
   const tableNumber = mesa?.replace("mesa-", "") || null;
@@ -45,7 +47,8 @@ const Cart = ({ items, onRemoveItem, onClearCart }: CartProps) => {
   }, {} as Record<string, CartItem & { instances: CartItem[]; quantity: number }>);
 
   const handleCheckoutSubmit = async (data: CheckoutData) => {
-    const phoneNumber = "5515988240374";
+    const whatsappNumber = design.whatsappNumber || "15998343599";
+    const phoneNumber = `55${whatsappNumber.replace(/\D/g, "")}`;
     
     // Calculate extras total from stepValues (per-instance structure)
     let extrasTotal = 0;

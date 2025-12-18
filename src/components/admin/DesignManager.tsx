@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, Trash2, Save, X, Upload, Image, Package, Palette, Type, RotateCcw, Layers, Edit2 } from "lucide-react";
+import { Plus, Trash2, Save, X, Upload, Image, Package, Palette, Type, RotateCcw, Layers, Edit2, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { DesignConfig, CardLayout, CustomFont, SocialLink } from "@/contexts/DesignContext";
@@ -183,6 +183,23 @@ export const DesignManager = ({
             placeholder="Ex: Personalizamos o copo com o seu nome!"
             className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
           />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-foreground flex items-center gap-2">
+            <Phone className="w-4 h-4" />
+            WhatsApp do Restaurante
+          </label>
+          <input
+            type="text"
+            value={localDesign.whatsappNumber || ""}
+            onChange={(e) => updateLocalDesign({ whatsappNumber: e.target.value })}
+            placeholder="Ex: 15998343599"
+            className="w-full p-3 rounded-xl border border-border bg-background text-foreground mt-1"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Número que receberá os pedidos via WhatsApp (apenas números, com DDD)
+          </p>
         </div>
 
         {/* Social Links */}
